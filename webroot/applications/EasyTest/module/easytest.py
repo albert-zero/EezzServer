@@ -86,6 +86,7 @@ class TDirView(TTable):
         xTree = self.mPathStore.get(xPath)
         
         if xTree != None:
+            self.mTreeRoot = xTree
             return {'return':{'code':200, 'value': xTree}}
         
         xTree = TTable(['directory'], 'content', visible_items=20)      

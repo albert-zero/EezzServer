@@ -1,12 +1,29 @@
-# ----------------------------------------------------------------
-# File  : eezz_websocket.py
-# Author: Albert Zedlitz
-# Date  : 08.11.2013
-# Description:
-#   Implements websocket protocol rfc 6455
-#
-# ----------------------------------------------------------------
-import io, socket, struct, threading
+"""
+    EezzServer: 
+    High speed application development and 
+    high speed execution based on HTML5
+    
+    Copyright (C) 2015  Albert Zedlitz
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Description:
+   Implements websocket protocol according to rfc 6455 
+   https://tools.ietf.org/html/rfc6455
+ 
+"""
+import io, socket, struct
 from   Crypto.Hash import SHA
 import base64
 import select

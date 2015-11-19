@@ -1,18 +1,35 @@
 #!/usr/bin/python3
 """
-File  : table
-Author: Albert Zedlitz
+    EezzServer: 
+    High speed application development and 
+    high speed execution based on HTML5
+    
+    Copyright (C) 2015  Albert Zedlitz
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ 
 Documentation:
-  TTable is used for formatted ASCII output of a table structure. It allows to access the table 
-  data for further processing e.g. for HTML output. It could also be used to access a 
-  SQL database table
+  TTable is used for formatted ASCII output of a table structure. 
+  It allows to accessing the table data for further processing e.g. for HTML output. 
+  It could also be used to access a SQL database table
   
-  Each table cell might contain a TTable or TCell object, which could be used to store recursive
-  structures, type information or unique IDs when working with database.
+  Each table cell might contain a TTable or TCell object, which could be used to store 
+  information about recursive structures, type information or unique IDs for any entry.
   
   Each table has an index allowing unique selection after sorting. This is always the first column
-  For HTML output it would be recommended hiding this column.     
+  For HTML output and it's possible (and recommended) to hide this column.     
 """
 import os
 import collections
