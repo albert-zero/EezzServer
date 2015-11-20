@@ -640,7 +640,7 @@ class TEezzAgent(HTMLParser):
                 # insert the query as callback and asign argument                
                 if aSession:
                     for xArgKey in xJsonObj.keys():                    
-                        if xArgKey in ('eezzAgent.asign', 'callback'):  
+                        if xArgKey in ('eezzAgent.assign', 'callback'):  
                             for x1, y1 in xJsonObj[xArgKey].items():                            
                                 for x2, y2 in y1.items():
                                     if isinstance(y2, str) and y2.startswith('eezzQuery.'):
@@ -652,9 +652,9 @@ class TEezzAgent(HTMLParser):
                 
                 aHtmlTag[xKey] = urllib.parse.quote(json.dumps(xJsonObj))
                                         
-                if ('eezzAgent.asign' in xJsonObj or 'eezzAgent.async' in xJsonObj) and aSession:
+                if ('eezzAgent.assign' in xJsonObj or 'eezzAgent.async' in xJsonObj) and aSession:
                     xAsignStm = dict()
-                    xAsignStm.update(xJsonObj.get('eezzAgent.asign', dict())) 
+                    xAsignStm.update(xJsonObj.get('eezzAgent.assign', dict())) 
                     xAsignStm.update(xJsonObj.get('eezzAgent.async', dict())) 
 
                     for x1, y1 in xAsignStm.items():

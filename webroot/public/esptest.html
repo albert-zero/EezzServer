@@ -2,7 +2,7 @@
 <!-- --------------- -------------------------------------------------------  -->
 <!-- EasyServerPages example   ---------------------------------------------  -->
 <!-- --------------- -------------------------------------------------------  -->
-<html name="aExample" data-eezz-action="{'eezzAgent.asign':{'EasyTest/module/easytest/TDirView':{}}}">
+<html name="aExample" data-eezz-action="{'eezzAgent.assign':{'EasyTest/module/easytest/TDirView':{}}}">
 <head>
     <style type="text/css">
         
@@ -111,7 +111,7 @@
 	    		<!-- Directories     -------------------------------------------------------  -->
     			<!-- --------------- -------------------------------------------------------  -->
 	            <table style="width:100%; height:100%" name="aDirList" class="easyView"
-	                data-eezz-action = "{'eezzAgent.asign'   :{'aExample.get_selected_obj':{'index':'-1', 'visible_items':'40'}},
+	                data-eezz-action = "{'eezzAgent.assign'   :{'aExample.get_selected_obj':{'index':'-1', 'visible_items':'40'}},
 	                                     'eezzAgent.dictionary':'aDirList.get_dictionary',
 	                                     'update': {'aFileList.innerHTML':'*', 'aDirList.innerHTML':'*', 'aEezzFile.value':'aDirList.data-cwd'} }"
 	                    data-cwd         = "{selected_entry}"
@@ -184,7 +184,7 @@ class TDirView(TTable):
 	    		<!-- Files     -------------------------------------------------------  -->
     			<!-- --------------- -------------------------------------------------------  -->
 	            <table style="width:100%; height:100%" name="aFileList" class="easyView"
-	                data-eezz-action = "{'eezzAgent.asign'    :{'aDirList.get_selected_obj':{'index':'0', 'visible_items':'20', 'visible_block':'8'}},
+	                data-eezz-action = "{'eezzAgent.assign'    :{'aDirList.get_selected_obj':{'index':'0', 'visible_items':'20', 'visible_block':'8'}},
 	                                     'eezzAgent.dictionary':'aFileList.get_dictionary',
 	                                     'update'              :{'aEezzFile.value':'aFileList.data-current-file', 'aFileList.innerHTML':'*'} }"
 	                    data-current-file = "{selected_entry}"
