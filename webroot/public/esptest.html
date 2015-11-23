@@ -80,65 +80,58 @@
     </table>
     
     <table class="TblDescription">
-    	<tr>
-    		<td>
-		    	<span style="font-size:24px;color: #e8662b">Faster:</span>
-		    </td><td style="font-weight:bold">Based on WEB-Sockets with minimal data transfer. Runs without JavaScript or CGI
-		    </td> 
-		</tr><tr>
-			<td> <span style="font-size:24px;color: #e8662b">Magic:</span>
-		    </td><td style="font-weight:bold">Whatever you put into TTable would appear in HTML. The example below shows what's possible with ca. 30 lines of code.
-    		</td> 	
-		</tr><tr>
-			<td> <span style="font-size:24px;color: #e8662b">Easy:</span>
-		    </td><td style="font-weight:bold">TTable build in features include <ul><li>sorting</li><li>block and scroll navigation</li><li>command line output</li></ul>
-    		</td> 	
-		</tr><tr>
-			<td>To run this example<br/>on command line:
-		    </td><td>&gt; set PYTHONPATH=&lt;webroot&gt;\applications\EasyServerPage<br/>
+        <tr>
+            <td>
+                <span style="font-size:24px;color: #e8662b">Faster:</span></td>
+            <td style="font-weight:bold">Based on WEB-Sockets with minimal data transfer. Runs without JavaScript or CGI</td></tr>
+        <tr>
+            <td> <span style="font-size:24px;color: #e8662b">Magic:</span></td>
+            <td style="font-weight:bold">Whatever you put into TTable would appear in HTML. The example below shows what's possible with ca. 30 lines of code.</td></tr>
+        <tr>
+            <td> <span style="font-size:24px;color: #e8662b">Easy:</span></td>
+            <td style="font-weight:bold">TTable build in features include <ul><li>sorting</li><li>block and scroll navigation</li><li>command line output</li></ul></td></tr>
+        <tr>
+            <td>To run this example<br/>on command line:</td>
+            <td>&gt; set PYTHONPATH=&lt;webroot&gt;\applications\EasyServerPage<br/>
                      &gt; cd &lt;webroot&gt;\applications\EasyTest\module<br/>
-                     &gt; python easyTest.py 
-    		</td> 	
-    	</tr>
+                     &gt; python easyTest.py</td></tr>
     </table>
     
     <!-- Content         -------------------------------------------------------  -->
     <!-- --------------- -------------------------------------------------------  -->
     <table style="margin-top:10pt; width:100%" class="easyTbl">   
-    	<tr>
-          	<td style="width:30%; height:150px; vertical-align:top"> 
-            
-	    		<!-- Directories     -------------------------------------------------------  -->
-    			<!-- --------------- -------------------------------------------------------  -->
-	            <table style="width:100%; height:100%" name="aDirList" class="easyView"
-	                data-eezz-action = "{'eezzAgent.assign'   :{'aExample.get_selected_obj':{'index':'-1', 'visible_items':'40'}},
-	                                     'eezzAgent.dictionary':'aDirList.get_dictionary',
-	                                     'update': {'aFileList.innerHTML':'*', 'aDirList.innerHTML':'*', 'aEezzFile.value':'aDirList.data-cwd'} }"
-	                    data-cwd         = "{selected_entry}"
-	                    data-nav-prev    = "{table_prev}" 
-	                    data-nav-pos     = "{table_pos}" 
-	                    data-nav-next    = "{table_next}" 
-	                    data-nav-last    = "{table_last}" 
-	                    data-nav-top     = "{table_top}"
-	                    data-nav-current = "{table_current}">
-	                <thead>
-	                    <tr data-eezz-template="{'table-rows':[':']}"> 
-	                        <th data-eezz-template="{'table-columns':['1:']}">{}</th></tr></thead> 
-	                <tbody style="height:150pt">
-	                    <tr data-eezz-template="{'table-rows':[':']}"> 
-	                        <td data-eezz-template="{'table-columns':['1:']}"><img src="dir.ico"/>{}</td></tr></tbody>
-	                <tfoot>
-	                    <tr data-eezz-template ="{'display':{'table_nav_type':'block'}}">
-	                        <td style="text-align:center">
-	                            <img src ="navbar.jpg" style="height:20px; width:160px" usemap="#aDirListNavMap"/>
-	                            <map name="aDirListNavMap">
-	                                <area shape="rect" coords="  0px, 0px,  40px, 20px" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-top'}}, 'update'  : {'aDirList.innerHTML':'*'} }"/>                              
-	                                <area shape="rect" coords=" 40px, 0px,  80px, 20px" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-prev'}},'update'  : {'aDirList.innerHTML':'*'} }"/>
-	                                <area shape="rect" coords=" 80px, 0px, 120px, 20px" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-next'}},'update'  : {'aDirList.innerHTML':'*'} }"/>
-	                                <area shape="rect" coords="120px, 0px, 160px, 20px" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-last'}},'update'  : {'aDirList.innerHTML':'*'} }"/></map></td></tr></tfoot>
-	            </table></td>
+        <tr>
+            <td style="width:30%; height:150px; vertical-align:top">
+                <!-- Directories     -------------------------------------------------------  -->
+                <!-- --------------- -------------------------------------------------------  -->
+                <table style="width:100%; height:100%" name="aDirList" class="easyView"
+                    data-eezz-action = "{'eezzAgent.assign'   :{'aExample.get_selected_obj':{'index':'-1', 'visible_items':'40'}},
+                                         'eezzAgent.dictionary':'aDirList.get_dictionary',
+                                         'update': {'aFileList.innerHTML':'*', 'aDirList.innerHTML':'*', 'aEezzFile.value':'aDirList.data-cwd'} }"
+                    data-cwd         = "{selected_entry}"
+                    data-nav-prev    = "{table_prev}" 
+                    data-nav-pos     = "{table_pos}" 
+                    data-nav-next    = "{table_next}" 
+                    data-nav-last    = "{table_last}" 
+                    data-nav-top     = "{table_top}"
+                    data-nav-current = "{table_current}">
+                    <thead>
+                        <tr data-eezz-template="{'table-rows':[':']}"> 
+                            <th data-eezz-template="{'table-columns':['1:']}">{}</th></tr></thead> 
+                    <tbody style="height:150pt">
+                        <tr data-eezz-template="{'table-rows':[':']}"> 
+                            <td data-eezz-template="{'table-columns':['1:']}"><img src="dir.ico"/>{}</td></tr></tbody>
+                    <tfoot>
+                        <tr data-eezz-template ="{'display':{'table_nav_type':'block'}}">
+                            <td style="text-align:center">
+                                <img src ="navbar.jpg" style="height:20px; width:160px" usemap="#aDirListNavMap"/>
+                                    <map name="aDirListNavMap">
+                                        <area shape="rect" coords="  0px, 0px,  40px, 20px" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-top'}}, 'update'  : {'aDirList.innerHTML':'*'} }"/>                              
+                                        <area shape="rect" coords=" 40px, 0px,  80px, 20px" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-prev'}},'update'  : {'aDirList.innerHTML':'*'} }"/>
+                                        <area shape="rect" coords=" 80px, 0px, 120px, 20px" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-next'}},'update'  : {'aDirList.innerHTML':'*'} }"/>
+                                        <area shape="rect" coords="120px, 0px, 160px, 20px" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-last'}},'update'  : {'aDirList.innerHTML':'*'} }"/></map></td></tr></tfoot></table></td>
             <td rowspan="2" style="width:70%; vertical-align:top;">
-          		<pre>
+<pre>
 from easy.table import TTable
 class TDirView(TTable):
     def __init__(self): 
@@ -174,48 +167,48 @@ class TDirView(TTable):
             super().get_selected_obj(index, visible_items, visible_block)
             return self
         <span style="color:red">else:                            # Called by HTML-table aFileView</span>
-    	    self.mDetail.get_selected_obj(index, visible_items, visible_block)
+            self.mDetail.get_selected_obj(index, visible_items, visible_block)
             return self.mDetail
-          		
-          		</pre></td></tr>
-    	<tr>
+                  
+                  </pre></td></tr>
+        <tr>
             <td style="width:30%; height:300px; vertical-align:top">
             
-	    		<!-- Files     -------------------------------------------------------  -->
-    			<!-- --------------- -------------------------------------------------------  -->
-	            <table style="width:100%; height:100%" name="aFileList" class="easyView"
-	                data-eezz-action = "{'eezzAgent.assign'    :{'aDirList.get_selected_obj':{'index':'0', 'visible_items':'20', 'visible_block':'8'}},
-	                                     'eezzAgent.dictionary':'aFileList.get_dictionary',
-	                                     'update'              :{'aEezzFile.value':'aFileList.data-current-file', 'aFileList.innerHTML':'*'} }"
-	                    data-current-file = "{selected_entry}"
-	                    data-nav-prev     = "{table_prev}" 
-	                    data-nav-pos      = "{table_pos}" 
-	                    data-nav-next     = "{table_next}" 
-	                    data-nav-last     = "{table_last}" 
-	                    data-nav-top      = "{table_top}"
-	                    data-nav-current  = "{table_current}">
-	                                
-	                <thead>
-	                    <tr data-eezz-template="{'table-rows':[':']}"> 
-	                        <th data-eezz-template="{'table-columns':['1:']}">{}</th></tr></thead> 
-	
-	                <tbody style="height:300pt;width:300pt;">
-	                    <tr data-eezz-template="{'table-rows':[':']}"> 
-	                        <td data-eezz-template="{'table-columns':['1:']}">{}</td></tr></tbody>
-	                
-	                <tfoot>
-	                    <tr data-eezz-template ="{'display':{'table_nav_type':'block'}}">
-	                        <td style="text-align:center">
-	                            <img src ="navbar.jpg" style="height:20px; width:160px" usemap="#aFileListNavMap"/>
-	                            <map name="aFileListNavMap">
-	                                <area shape="rect" coords="  0px, 0px,  40px, 20px" data-eezz-event="{'callback': {'aFileList.do_navigate': {'where':'aFileList.data-nav-top'}}, 'update'  : {'aFileList.innerHTML':'*'} }"/>                              
-	                                <area shape="rect" coords=" 40px, 0px,  80px, 20px" data-eezz-event="{'callback': {'aFileList.do_navigate': {'where':'aFileList.data-nav-prev'}},'update'  : {'aFileList.innerHTML':'*'} }"/>
-	                                <area shape="rect" coords=" 80px, 0px, 120px, 20px" data-eezz-event="{'callback': {'aFileList.do_navigate': {'where':'aFileList.data-nav-next'}},'update'  : {'aFileList.innerHTML':'*'} }"/>
-	                                <area shape="rect" coords="120px, 0px, 160px, 20px" data-eezz-event="{'callback': {'aFileList.do_navigate': {'where':'aFileList.data-nav-last'}},'update'  : {'aFileList.innerHTML':'*'} }"/></map></td></tr></tfoot>
-	            </table>
-        	</td></tr>
+                <!-- Files     -------------------------------------------------------  -->
+                <!-- --------------- -------------------------------------------------------  -->
+                <table style="width:100%; height:100%" name="aFileList" class="easyView"
+                    data-eezz-action = "{'eezzAgent.assign'    :{'aDirList.get_selected_obj':{'index':'0', 'visible_items':'20', 'visible_block':'8'}},
+                                         'eezzAgent.dictionary':'aFileList.get_dictionary',
+                                         'update'              :{'aEezzFile.value':'aFileList.data-current-file', 'aFileList.innerHTML':'*'} }"
+                        data-current-file = "{selected_entry}"
+                        data-nav-prev     = "{table_prev}" 
+                        data-nav-pos      = "{table_pos}" 
+                        data-nav-next     = "{table_next}" 
+                        data-nav-last     = "{table_last}" 
+                        data-nav-top      = "{table_top}"
+                        data-nav-current  = "{table_current}">
+                                    
+                    <thead>
+                        <tr data-eezz-template="{'table-rows':[':']}"> 
+                            <th data-eezz-template="{'table-columns':['1:']}">{}</th></tr></thead> 
+    
+                    <tbody style="height:300pt;width:300pt;">
+                        <tr data-eezz-template="{'table-rows':[':']}"> 
+                            <td data-eezz-template="{'table-columns':['1:']}">{}</td></tr></tbody>
+                    
+                    <tfoot>
+                        <tr data-eezz-template ="{'display':{'table_nav_type':'block'}}">
+                            <td style="text-align:center">
+                                <img src ="navbar.jpg" style="height:20px; width:160px" usemap="#aFileListNavMap"/>
+                                <map name="aFileListNavMap">
+                                    <area shape="rect" coords="  0px, 0px,  40px, 20px" data-eezz-event="{'callback': {'aFileList.do_navigate': {'where':'aFileList.data-nav-top'}}, 'update'  : {'aFileList.innerHTML':'*'} }"/>                              
+                                    <area shape="rect" coords=" 40px, 0px,  80px, 20px" data-eezz-event="{'callback': {'aFileList.do_navigate': {'where':'aFileList.data-nav-prev'}},'update'  : {'aFileList.innerHTML':'*'} }"/>
+                                    <area shape="rect" coords=" 80px, 0px, 120px, 20px" data-eezz-event="{'callback': {'aFileList.do_navigate': {'where':'aFileList.data-nav-next'}},'update'  : {'aFileList.innerHTML':'*'} }"/>
+                                    <area shape="rect" coords="120px, 0px, 160px, 20px" data-eezz-event="{'callback': {'aFileList.do_navigate': {'where':'aFileList.data-nav-last'}},'update'  : {'aFileList.innerHTML':'*'} }"/></map></td></tr></tfoot>
+                </table>
+            </td></tr>
         <tr>
-          	<td colspan="2"><input style="width:50%" name="aEezzFile" type="text" value="URI" readonly="readonly" /></td></tr>    
+              <td colspan="2"><input style="width:50%" name="aEezzFile" type="text" value="URI" readonly="readonly" /></td></tr>    
     </table>
     
     <!-- Texte Database  -------------------------------------------------------  -->
@@ -226,7 +219,7 @@ class TDirView(TTable):
         <tr data-eezz-template="{'display':{'type':602}}"> <td>_("602 - Path not found    at [{0}:{1}]: {2}")  </td></tr>
         <tr data-eezz-template="{'display':{'type':605}}"> <td>_("605 - HTML Parser Error at [{0}:{1}]: {3} != {2}") </td></tr>
         <tr data-eezz-template="{'display':{'type':610}}"> <td>_("610 - Class/Method not found {0}:{1}")      </td></tr>
-        	
+            
         <tr data-eezz-template="{'table-rows':[':']}">
             <td  data-eezz-template="{'table-columns':[':']}">{}</td></tr>
 
