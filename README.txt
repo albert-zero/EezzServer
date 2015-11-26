@@ -1,6 +1,6 @@
 Install the project an perform the following steps
 
-1. Set PYTHONPATH=EezzServer/webroot/applications/EezzServer/eezz
+1. Set PYTHONPATH=EezzServer/webroot/applications/EezzServer
 2. Execute 
     pthon server.py --webroot=<path>/EezzServer/webroot --host=localhost --websocket=8000
 
