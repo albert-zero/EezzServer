@@ -2,7 +2,7 @@
 <!-- --------------- -------------------------------------------------------  -->
 <!-- EasyServerPages example   ---------------------------------------------  -->
 <!-- --------------- -------------------------------------------------------  -->
-<html name="aExample" data-eezz-action="{'eezzAgent.assign':{'EasyTest/module/easytest/TDirView':{}}}">
+<html name="aExample" data-eezz-action="{'eezzAgent.assign':{'EasyTest/module.easytest/TDirView':{}}}">
 <head>
     <style type="text/css">
         
@@ -71,10 +71,9 @@
     <table style="width:100%; ">
         <tr>
             <td style="width:5%"><hr class="clHrThick"/><hr class="clHrThin"/></td>
-            <td style="width:0"><h1 style="color:#e8662b; white-space:nowrap">eezzy server page example</h1></td>
+            <td style="width:0"><h1 style="color:#e8662b; white-space:nowrap">eezz master-detail view example</h1></td>
             <td style="width:75%"><hr class="clHrThick"/><hr class="clHrThin"/></td>
-            <td style="width:0px"><img title="eezz" src="eezz.png" style="position:relative; top:10px"/>
-                <span style="color:#e8662b; position:relative; left:20px; top:-10px">eezz</span></td>
+            <td style="width:0px"></td>
             <td style="width:5%"><hr class="clHrThick"/><hr class="clHrThin"/></td>
         </tr>
     </table>
@@ -105,7 +104,7 @@
                 <!-- Directories     -------------------------------------------------------  -->
                 <!-- --------------- -------------------------------------------------------  -->
                 <table style="width:100%; height:100%" name="aDirList" class="easyView"
-                    data-eezz-action = "{'eezzAgent.assign'   :{'aExample.get_selected_obj':{'index':'-1', 'visible_items':'40'}},
+                    data-eezz-action = "{'eezzAgent.assign'   :{'aExample.get_selected_obj':{'index':'-1', 'visible_items':'40', 'visible_block':'10'}},
                                          'eezzAgent.dictionary':'aDirList.get_dictionary',
                                          'update': {'aFileList.innerHTML':'*', 'aDirList.innerHTML':'*', 'aEezzFile.value':'aDirList.data-cwd'} }"
                     data-cwd         = "{selected_entry}"
@@ -177,7 +176,7 @@ class TDirView(TTable):
                 <!-- Files     -------------------------------------------------------  -->
                 <!-- --------------- -------------------------------------------------------  -->
                 <table style="width:100%; height:100%" name="aFileList" class="easyView"
-                    data-eezz-action = "{'eezzAgent.assign'    :{'aDirList.get_selected_obj':{'index':'0', 'visible_items':'20', 'visible_block':'8'}},
+                    data-eezz-action = "{'eezzAgent.assign'    :{'aDirList.get_selected_obj':{'index':'0', 'visible_items':'50', 'visible_block':'40'}},
                                          'eezzAgent.dictionary':'aFileList.get_dictionary',
                                          'update'              :{'aEezzFile.value':'aFileList.data-current-file', 'aFileList.innerHTML':'*'} }"
                         data-current-file = "{selected_entry}"

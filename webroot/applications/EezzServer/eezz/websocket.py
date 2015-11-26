@@ -29,7 +29,7 @@ import base64
 import select
 import json
 import threading
-from   agent import TEezzAgent
+from   eezz.agent import TEezzAgent
   
 # Define exception
 # ----------------------------------------------------------------

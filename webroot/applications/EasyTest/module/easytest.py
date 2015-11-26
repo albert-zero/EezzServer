@@ -3,8 +3,8 @@
 # Test script to generate a master/detail view as directory/files
 # ---------------------------------------------------------------
 import os
-from   table import TTable
-from   table import TCell
+from   eezz.table import TTable
+from   eezz.table import TCell
 from   sys import path
 # from test.test_importlib.extension.util import PATH
 

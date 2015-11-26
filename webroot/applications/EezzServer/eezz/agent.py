@@ -31,8 +31,8 @@ import gettext
 from   collections    import deque
 import json
 import threading
-from   table          import TTable, TCell
-from   service        import TBlackBoard
+from   eezz.table          import TTable, TCell
+from   eezz.service        import TBlackBoard
 
 
 # --------------------------------------------------------

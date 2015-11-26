@@ -28,11 +28,12 @@ import http.cookies
 from   urllib.parse   import urlparse
 from   urllib.parse   import parse_qs
 import json
-
+import sqlite3
 from   optparse       import OptionParser
-from   websocket      import TWebSocket
-from   agent          import TEezzAgent
-from   blueserv import TBluetooth
+from   eezz.websocket import TWebSocket
+from   eezz.agent     import TEezzAgent
+from   eezz.blueserv  import TBluetooth
+import encodings.idna
 
 # Class THttpHandler
 #    HTTP Handler for incoming requests 
@@ -55,7 +56,11 @@ class TWebServer(http.server.HTTPServer):
     # ---------------------------------    
     def serve_forever(self):
         while self.mRunning:
-            self.handle_request()
+            try:
+                self.handle_request()
+            except KeyboardInterrupt:
+                self.shutdown()
+                break
    
     # ---------------------------------    
     def shutdown(self):
@@ -131,13 +136,10 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
                         self.wfile.write(xJsonStr.encode('utf8'))
                         return
                     
-                    if xResult.path == '/service/system' and 'exit' in xResult.query:
-                        xAgent    = TEezzAgent(self.server.mServerAddr, self.server.mWebAddr)
-                        xResponse = xAgent.service('system', 'shutdown')
-
-                        xJsonStr  = json.dumps(xResponse)
-                        self.wfile.write(xJsonStr.encode('utf8'))
-                                                
+                    if xResult.path == '/system/exit':
+                        self.send_response(200)
+                        self.end_headers()
+                        self.wfile.write('good by'.encode('utf8'))
                         self.mServer.shutdown()
                         return
                 except ConnectionResetError:
@@ -229,9 +231,9 @@ import sys
 if __name__ == "__main__":
     print(""" 
         EezzServer  Copyright (C) 2015  Albert Zedlitz
-        This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+        This program comes with ABSOLUTELY NO WARRANTY;'.
         This is free software, and you are welcome to redistribute it
-        under certain conditions; type `show c' for details.
+        under certain conditions;.
     """)
 
     # Parse command line options
@@ -242,12 +244,12 @@ if __name__ == "__main__":
     aOptParser.add_option("-x", "--websocket", dest="aWebSocket",  default="8100",      help="Web-Socket Port")
     
     (aOptions, aArgs) = aOptParser.parse_args() 
-    xPath = os.path.join(aOptions.aWebRoot.replace('/', os.path.sep), 'public')
-    
+    xPath = os.path.join(aOptions.aWebRoot, 'public')
+
     if os.path.isdir(xPath):
         os.chdir(xPath)
     else:
-        print('web root not found: {}'.format(xPath))
+        print('webroot not found: {}'.format(xPath))
         os._exit(0)
         
     aHttpd  = TWebServer((aOptions.aHttpHost, int(aOptions.aHttpPort)), THttpHandler, aOptions.aWebSocket)
