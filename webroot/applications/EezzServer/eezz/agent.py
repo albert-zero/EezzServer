@@ -321,7 +321,7 @@ class TEezzAgent(HTMLParser):
                 xPath = aJsonObj['path']
                 if xPath == '/':
                     xPath = '/index.html'
-                self.mCurrentDocument = '.{}'.format(xPath)
+                self.mCurrentDocument = './{}'.format(xPath)
             if aJsonObj.get('args'):
                 xJsonStr = urllib.parse.unquote(aJsonObj['args'])
                 self.mArguments = json.loads(xJsonStr)
@@ -692,7 +692,7 @@ class TEezzAgent(HTMLParser):
                             except Exception as xEx:
                                 xCell = TCell(0, 610, [xPathClass, str(xEx)])
                                 self.mTraceStack.append(list(), xCell) 
-                                raise                                
+                                continue
                             else:
                                 self.mGlobals[xClassName] = xClass
                         

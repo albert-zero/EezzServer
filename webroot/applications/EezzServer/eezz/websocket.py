@@ -103,6 +103,9 @@ class TWebSocketClient():
                 elif xOpcode == 0x9:
                     xData = self.readFrame(xOpcode, xMaskVector, xPayloadLen)
                     self.writeFrame(aData=xData[:xPayloadLen], aOpCode=0xA, aFinal=(1<<7), aMaskVector = None)
+                elif xOpcode == 0xA:
+                    xData = self.readFrame(xOpcode, xMaskVector, xPayloadLen)
+                    self.writeFrame(aData=xData[:xPayloadLen], aOpCode=0x9, aFinal=(1<<7), aMaskVector = None)
                 else:
                     raise TWebSocketException("unknown opcode={}".format(xOpcode))         
         except Exception as xEx:

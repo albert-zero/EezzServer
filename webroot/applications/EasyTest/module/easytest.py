@@ -22,6 +22,7 @@ class TDirView(TTable):
         self.mPathStore    = dict()
         self.mVisibleItems = visible_items
         self.do_select()
+        print ('TDirView')
         
     # ---------------------------------------------------------------
     # ---------------------------------------------------------------

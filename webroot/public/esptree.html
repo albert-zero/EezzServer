@@ -96,13 +96,13 @@
 	               data-current-node  = "{tree_id}"
 	               data-current-path  = "{selected_entry}"
 	               data-eezz-event    = "{'callback':{'aExample.getDirlist':{'path':'this.data-current-path', 'node':'this.id'}}}"> 
-	               <td data-eezz-template="{'table-columns':['1:']}"><img src="dir.ico"/>{}</td></tr> 
+	               <td data-eezz-template="{'table-columns':['1:']}"><img src="dir.png"/>{}</td></tr> 
 	
 	           <tr data-eezz-template = "{'display':{'type':'file'}}"
 	               data-current-node  = "{tree_id}"
                    data-current-path  = "{selected_entry}"
 	               data-eezz-event    = "{'callback':{'aExample.showFile':{'path':'this.data-current-path'}}}"> 
-	               <td data-eezz-template="{'table-columns':['1:']}"><img src="file.ico"/>{}</td></tr> 
+	               <td data-eezz-template="{'table-columns':['1:']}"><img src="file.png"/>{}</td></tr> 
 	           
 	           <tr data-eezz-template = "{'table-rows':[':']}">
 	               <td data-eezz-template="{'table-columns':['1:']}">default:{}</td></tr></tbody>
@@ -110,13 +110,15 @@
 	    <tfoot>
 	        <tr data-eezz-template ="{'display':{'table_nav_type':'block'}}">
 	            <td style="text-align:center">
-	                {table_position}/{table_size}
-	                <img src ="navbar.jpg" style="height:20px; width:160px" usemap="#aFileListNavMap"/>
-	                <map name="aFileListNavMap">
-	                    <area class="eezzTreeNode" shape="rect" coords="  0px, 0px,  40px, 20px" data-current-path={selected_entry} data-current-node="{table_id}" data-eezz-event="{'callback': {'aExample.navigate': {'path':'this.data-current-path', 'node':'this.data-current-node', 'where':'aDirList.data-nav-top' }}}"/>                              
-	                    <area class="eezzTreeNode" shape="rect" coords=" 40px, 0px,  80px, 20px" data-current-path={selected_entry} data-current-node="{table_id}" data-eezz-event="{'callback': {'aExample.navigate': {'path':'this.data-current-path', 'node':'this.data-current-node', 'where':'aDirList.data-nav-prev'}}}"/>
-	                    <area class="eezzTreeNode" shape="rect" coords=" 80px, 0px, 120px, 20px" data-current-path={selected_entry} data-current-node="{table_id}" data-eezz-event="{'callback': {'aExample.navigate': {'path':'this.data-current-path', 'node':'this.data-current-node', 'where':'aDirList.data-nav-next'}}}"/>
-	                    <area class="eezzTreeNode" shape="rect" coords="120px, 0px, 160px, 20px" data-current-path={selected_entry} data-current-node="{table_id}" data-eezz-event="{'callback': {'aExample.navigate': {'path':'this.data-current-path', 'node':'this.data-current-node', 'where':'aDirList.data-nav-last'}}}"/></map></td></tr></tfoot>
+						<map name="afilelistnavmap">
+	                    <area class="eezzTreeNode" shape="rect" coords="  0, 0,  40, 20" data-current-path={selected_entry} data-current-node="{table_id}" data-eezz-event="{'callback': {'aExample.navigate': {'path':'this.data-current-path', 'node':'this.data-current-node', 'where':'aDirList.data-nav-top' }}}"/>                              
+	                    <area class="eezzTreeNode" shape="rect" coords=" 40, 0,  80, 20" data-current-path={selected_entry} data-current-node="{table_id}" data-eezz-event="{'callback': {'aExample.navigate': {'path':'this.data-current-path', 'node':'this.data-current-node', 'where':'aDirList.data-nav-prev'}}}"/>
+	                    <area class="eezzTreeNode" shape="rect" coords=" 80, 0, 120, 20" data-current-path={selected_entry} data-current-node="{table_id}" data-eezz-event="{'callback': {'aExample.navigate': {'path':'this.data-current-path', 'node':'this.data-current-node', 'where':'aDirList.data-nav-next'}}}"/>
+	                    <area class="eezzTreeNode" shape="rect" coords="120, 0, 160, 20" data-current-path={selected_entry} data-current-node="{table_id}" data-eezz-event="{'callback': {'aExample.navigate': {'path':'this.data-current-path', 'node':'this.data-current-node', 'where':'aDirList.data-nav-last'}}}"/></map>
+						<img src ="navbar.jpg" style="height:20px; width:160px" usemap="#afilelistnavmap"/>
+						{table_position}/{table_size}
+	                </td></tr></tfoot>
+
 	</table>
     
     <!-- Texte Database  -------------------------------------------------------  -->
