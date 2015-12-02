@@ -98,10 +98,11 @@
 	               data-eezz-event    = "{'callback':{'aExample.getDirlist':{'path':'this.data-current-path', 'node':'this.id'}}}"> 
 	               <td data-eezz-template="{'table-columns':['1:']}"><img src="dir.png"/>{}</td></tr> 
 	
-	           <tr data-eezz-template = "{'display':{'type':'file'}}"
+	           <tr class ="eezzTreeLeaf"
+	           		data-eezz-template = "{'display':{'type':'file'}}"
 	               data-current-node  = "{tree_id}"
                    data-current-path  = "{selected_entry}"
-	               data-eezz-event    = "{'callback':{'aExample.showFile':{'path':'this.data-current-path'}}}"> 
+	               data-eezz-event    = "{'callback':{'aExample.showFile':{'path':'this.data-current-path'}}, 'update':{}}"> 
 	               <td data-eezz-template="{'table-columns':['1:']}"><img src="file.png"/>{}</td></tr> 
 	           
 	           <tr data-eezz-template = "{'table-rows':[':']}">

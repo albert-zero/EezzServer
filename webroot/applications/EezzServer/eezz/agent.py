@@ -1229,7 +1229,7 @@ class TEezzAgent(HTMLParser):
                         if xTrTemplate.mJsonObj:
                             xTrsUpdate = xTrTemplate.mJsonObj.get('update', xTrsUpdate)
                         
-                        if xTableTag.get('class') in ['eezzTreeNode', 'eezzTreeLeaf']:
+                        if xTrSave.get('class') in ['eezzTreeNode', 'eezzTreeLeaf']:
                             if isinstance(xRows[1], TTable):
                                 xSubTreeId = '{}:{}'.format(xTblName, xRows[1].mPath)
                             else:
@@ -1238,13 +1238,13 @@ class TEezzAgent(HTMLParser):
                             xSubTreeQt = urllib.parse.quote( xSubTreeId )
                             xValue     = xTrsUpdate.get('this'+'.innerHTML', '*') 
                             # xTreeId1    = 'id{}'.format(uuid.uuid1().time_low)
-                            xEvtUpdate = {'{}.innerHTML.{}'.format(xTblName, xSubTreeQt): xValue}
-                            
-                            xEvtUpdate.update( xTblUpdate )
+                            if xTrSave.get('class') == 'eezzTreeNode':
+                                xEvtUpdate = {'{}.innerHTML.{}'.format(xTblName, xSubTreeQt): xValue}                        
+                                xEvtUpdate.update( xTblUpdate )
                             xTrTemplate['id']    = xSubTreeQt
-                            xTrTemplate['class'] = xTableTag.get('class')
+                            xTrTemplate['class'] = xTrSave.get('class')
 
-                        if xTableTag.get('class') == 'eezzTreeLeaf':
+                        if xTrSave.get('class') == 'eezzTreeLeaf':
                             if xTable and xInx == xTable.get_selected_index():
                                 xTrTemplate['class'] = ' '.join(['eezzTreeLeaf','eezzSelected']) 
                             

@@ -346,6 +346,15 @@ function easyClick(aEvent, aElement) {
     	aPost = true;
     }
 
+    if (aElement.getAttribute('class') == 'eezzTreeLeaf') {
+    	if (aEvent.stopPropagation) {
+    		aEvent.stopPropagation();
+    	}
+    	else {
+    		aEvent.cancelBubble();
+    	}    	
+    }
+    
     if (aElement.getAttribute('class') == 'eezzTreeNode') {
     	aPost = eezzTreeExCo(aElement);
     	if (aEvent.stopPropagation) {
