@@ -70,6 +70,14 @@ class TDirView(TTable):
         if self.mTreeRoot == None:
             self.getDirlist(path, node)
         return {'return':{'code':200, 'value': self.mTreeRoot}}
+    # ---------------------------------------------------------------
+    # ---------------------------------------------------------------
+    def showFile(self, path=''): 
+        # self.mVisibleItems = visible_items
+        #if self.mTreeRoot == None:
+        #    self.getDirlist(path, node)
+        self.mTreeRoot = TTable()
+        return {'return':{'code':200, 'value': self.mTreeRoot}}
         
     # ---------------------------------------------------------------
     # ---------------------------------------------------------------
