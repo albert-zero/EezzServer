@@ -156,7 +156,7 @@ class TEezzAgent(HTMLParser):
         self.mState      = None
         self.startServices()
         
-        super().__init__(False)
+        super().__init__()
 
     # --------------------------------------------------------
     # --------------------------------------------------------

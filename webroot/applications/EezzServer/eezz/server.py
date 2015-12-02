@@ -28,12 +28,11 @@ import http.cookies
 from   urllib.parse   import urlparse
 from   urllib.parse   import parse_qs
 import json
-import sqlite3
 from   optparse       import OptionParser
 from   eezz.websocket import TWebSocket
 from   eezz.agent     import TEezzAgent
 from   eezz.blueserv  import TBluetooth
-import encodings.idna
+
 
 # Class THttpHandler
 #    HTTP Handler for incoming requests 

@@ -24,7 +24,8 @@ Description:
  
 """
 import io, socket, struct
-from   Crypto.Hash import SHA
+# from   Crypto.Hash import SHA
+import hashlib
 import base64
 import select
 import json
@@ -156,7 +157,7 @@ class TWebSocketClient():
     # Generate key for Sec-WebSocket-Accept
     # --------------------------------------------------------
     def genKey(self):
-        xhash     = SHA.new()
+        xhash     = hashlib.sha1()
         x64Key    = self.mHeaders.get('Sec-WebSocket-Key').strip()
         xKey      = x64Key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
         xhash.update(bytes(xKey, 'ascii'))
