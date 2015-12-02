@@ -177,7 +177,7 @@ function eezzTreeInsert(aElementId, aNodeElement) {
 	// Clear element for new entry
 	aElement.innerHTML = '';
 
-	// Create a new entry
+	// Create a new entry ---
 	var xTd     = document.createElement('td');
 
 	var xTableHead  = document.createElement('table');
@@ -187,18 +187,18 @@ function eezzTreeInsert(aElementId, aNodeElement) {
 	
     var xTHead  = document.createElement('thead');
     var xTBody  = document.createElement('tbody');
+    xTableHead.appendChild(xTHead);
+    xTableBody.appendChild(xTBody);
 
-    xTable.setAttribute('class', 'eezzTreeNode');
     xTBody.setAttribute('class', 'eezzTreeNode');
     xTHead.setAttribute('class', 'eezzTreeNode');
 
     xTd.setAttribute('class', 'eezzTreeNode');
     xTd.setAttribute('colspan', aCols);
+    
     xTd.appendChild(xTableHead);
     xTd.appendChild(xTableBody);
     
-    xTableHead.appendChild(xTHead);
-    xTableBody.appendChild(xTBody);
     
     xTHead.innerHTML = aTreeNodeHdr
     xTBody.innerHTML = aNodeElement
