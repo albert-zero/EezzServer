@@ -1,4 +1,5 @@
-Install the project and perform the following steps
+This project installs HTML as user interface to python projects using WEB sockets. 
+Output is event driven and could be designed without Java-Script.
 
 1. Download and unzip the project 
 2. Set environment PYTHONPATH=<download>/EezzServer/webroot/applications/EezzServer
@@ -13,4 +14,5 @@ Install the project and perform the following steps
 See documentation in <download>/EezzServer/webroot/repository
 => Fast access to huge data sets using virtual tables
 => Fast development: No framework, no JavaScript, strictly decoupling UI and app-implementation
-=> Tree defined on recursive <table> by CSS style class:eezzTreeNode and class:eezzTreeLeaf
+=> Recursive trees could be defined on HTML-<table> structure, 
+   just by setting CSS styles class:eezzTreeNode and class:eezzTreeLeaf
