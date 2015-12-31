@@ -1,4 +1,4 @@
-Install the project an perform the following steps
+Install the project and perform the following steps
 
 1. Download and unzip the project 
 2. Set environment PYTHONPATH=<download>/EezzServer/webroot/applications/EezzServer
