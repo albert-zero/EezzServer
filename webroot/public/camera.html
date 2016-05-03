@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
+    <link href="stylesbasic.css" rel="stylesheet" type="text/css" />
+	<script data-eezz-action = "{'eezzAgent.dictionary':'eezzAgent.get_script'}">
+        {websocket}
+    </script>
+	
+</head>
+<body name = "BodySection">
+
+    <div name="aWebCam" data-eezz-action="{'eezzAgent.assign': {'Camera/webcam.webcam/TCamera':{}}}"></div>
+    <h1>hello world</h1>
+	<img name="aWebPic"  
+		data-eezz-src      = {sourcefile}
+		data-eezz-action   = "{'eezzAgent.async': {'aWebCam.get_camera': {}}, 
+                               'update'         : {'aWebPic.src':'aWebPic.data-eezz-src'} }"/>
+
+</body>
+</html>

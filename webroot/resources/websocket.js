@@ -311,7 +311,12 @@ function easyClick(aEvent, aElement) {
 	                aDest = aJson.callback[xMethod][xArg].split("."); 
 	            
 	                if (aDest[0] == "this") {
-	                    aJson.callback[xMethod][xArg] = aElement.getAttribute(aDest[1]);
+	                	if (aDest[1] == "value") {
+		                    aJson.callback[xMethod][xArg] = aElement.value;	                		
+	                	}
+	                	else {
+	                		aJson.callback[xMethod][xArg] = aElement.getAttribute(aDest[1]);
+	                	}
 	                }
 	                else {
 	                    aElem  = document.getElementsByName(aDest[0])[0];

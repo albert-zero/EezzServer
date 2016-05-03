@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="stylesbasic.css" rel="stylesheet" type="text/css" />
+    <script data-eezz-action = "{'eezzAgent.dictionary':'eezzAgent.get_script'}">
+        {websocket}
+    </script>
+        
+</head>
+
+<body name = "BodySection">
+
+    <div name="aLight" data-eezz-action="{'eezzAgent.assign': {'Light/module.led/TLightControl':{}}}"></div>
+
+    <table>
+        <tr><td>
+            <input name="aBlue" type="range" min="0" max="50" value="0" step="5"
+                data-eezz-event = "{'callback': {'aLight.set_blue':{'intensity':'this.value'}}}"/></td></tr>
+        <tr><td>
+            <input name="aRed" type="range" min="0" max="50" value="0" step="5"
+                data-eezz-event = "{'callback': {'aLight.set_red':{'intensity':'this.value'}}}"/></td></tr>
+    </table>
+
+</body>
+</html>

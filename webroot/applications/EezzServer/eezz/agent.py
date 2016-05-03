@@ -31,6 +31,7 @@ import gettext
 from   collections    import deque
 import json
 import threading
+
 from   eezz.table          import TTable, TCell
 from   eezz.service        import TBlackBoard
 
@@ -76,6 +77,8 @@ class THtmlTag(dict):
                 if self.mTagName == 'select':
                     xOuterHtml.write(' onchange="easyClick(event, this)"')
                 elif self.mTagName == 'input' and self.get('type') == 'file':
+                    xOuterHtml.write(' onchange="easyClick(event, this)"')
+                elif self.mTagName == 'input' and self.get('type') == 'range':
                     xOuterHtml.write(' onchange="easyClick(event, this)"')
                 else:
                     xOuterHtml.write(' onclick="easyClick(event, this)"')
