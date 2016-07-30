@@ -38,6 +38,7 @@ class TBlackBoard:
     # --------------------------------------------------------
     # --------------------------------------------------------
     def __init__(self):
+        self.mDocRoot     = '/' 
         self.mBlackBoard  = dict()
     
     def addMesage(self, aName, aData):

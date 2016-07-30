@@ -33,6 +33,7 @@ from   eezz.websocket import TWebSocket
 from   eezz.agent     import TEezzAgent
 from   eezz.blueserv  import TBluetooth
 import encodings.idna
+from eezz.service import TBlackBoard
 
 # Class THttpHandler
 #    HTTP Handler for incoming requests 
@@ -71,8 +72,9 @@ class TWebServer(http.server.HTTPServer):
 # ---------------------------------    
 class THttpHandler(http.server.SimpleHTTPRequestHandler):   
     def __init__(self, request, client_address, server):
-        self.mClient = client_address
-        self.mServer = server
+        self.mClient    = client_address
+        self.mServer    = server
+        self.mBlackboad = TBlackBoard()
         self.server_version = 'eezzyServer/1.0'
         super().__init__(request, client_address, server)     
     
@@ -114,8 +116,8 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
         xQuery    = parse_qs(xResult.query)
         xRelPath  = xResult.path.replace('/', os.sep)
         
-        if xRelPath == os.sep:
-            xRelPath = os.path.join('.', self.path[1:], 'index.html')
+        if xRelPath[0] == os.sep:
+            xRelPath = xRelPath[1:]
         else:
             if self.mClient[0] in ('localhost', '127.0.0.1'):
                 try:
@@ -144,19 +146,25 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
                 except ConnectionResetError:
                     pass
         
-        xPath, xFile = os.path.split(xRelPath)
+        if xRelPath:
+            xAbsPath = os.path.join( self.mBlackboad.mDocRoot, xRelPath )
+        else:
+            xAbsPath = os.path.join( self.mBlackboad.mDocRoot, 'index.html' )
+            
+                
+        xPath, xFile = os.path.split(xAbsPath)
         xBase, xExt  = os.path.splitext(xFile)
                 
-        xResource = os.path.join('.', xRelPath[1:])
+        xResource = xAbsPath
         
         try:
             if xExt == '.html':
-                xAgent = TEezzAgent(self.server.mServerAddr, self.server.mWebAddr)
+                xAgent = TEezzAgent(self.mBlackboad.mDocRoot, self.server.mWebAddr)
                 
                 if xQuery:
-                    xResponse = xAgent.handle_request(xRelPath, aForm, False, {'arguments':xQuery})
+                    xResponse = xAgent.handle_request(xResource, aForm, False, {'arguments':xQuery})
                 else:    
-                    xResponse = xAgent.handle_request(xRelPath, aForm)
+                    xResponse = xAgent.handle_request(xResource, aForm)
                 xAgent.shutdown()
                 # xResponse = xResponse['return']['value']
     
@@ -244,7 +252,10 @@ if __name__ == "__main__":
     
     (aOptions, aArgs) = aOptParser.parse_args() 
     xPath = os.path.join(aOptions.aWebRoot, 'public')
-
+    
+    aBlackBoard          = TBlackBoard()
+    aBlackBoard.mDocRoot = xPath
+    
     if os.path.isdir(xPath):
         os.chdir(xPath)
     else:

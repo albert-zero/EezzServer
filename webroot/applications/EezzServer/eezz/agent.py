@@ -111,14 +111,13 @@ class TEezzAgent(HTMLParser):
     # --------------------------------------------------------
     # Initialize the parser
     # --------------------------------------------------------
-    def __init__(self, server_address=None, client_address=None, aWebClient=None):        
+    def __init__(self, doc_root=None, client_address=None, aWebClient=None):        
         self.mWebClient  = aWebClient
         self.mSession    = True
         self.mTagStack   = deque()
         self.mFileListener = dict()
         self.mElements   = dict()
         self.mCltAddr    = client_address
-        self.mSrvAddr    = server_address
         self.mCurrDomain = 'index'
         self.mCurrentDocument = None
         self.mLanguage    = None
@@ -138,7 +137,9 @@ class TEezzAgent(HTMLParser):
         self.mEvent       = threading.Event()
         
         self.mEvent.clear()
-        
+        if doc_root:
+            self.mBlackboard.mDocRoot = doc_root
+            
         #if not TEezzAgent.mGlobals:
         #    TEezzAgent.mGlobals['__buildins__'] = dict()
         
@@ -322,9 +323,14 @@ class TEezzAgent(HTMLParser):
         if 'path' in aJsonObj: 
             if self.mCurrentDocument == None:
                 xPath = aJsonObj['path']
-                if xPath == '/':
-                    xPath = '/index.html'
-                self.mCurrentDocument = './{}'.format(xPath)
+                if xPath[0] in ['/', '\\']:
+                    xPath = xPath[1:]
+
+                if not xPath:
+                    self.mCurrentDocument = os.path.join( self.mBlackboard.mDocRoot, 'index.html' )                                    
+                else:
+                    self.mCurrentDocument = os.path.join( self.mBlackboard.mDocRoot, xPath )                                    
+
             if aJsonObj.get('args'):
                 xJsonStr = urllib.parse.unquote(aJsonObj['args'])
                 self.mArguments = json.loads(xJsonStr)
