@@ -459,7 +459,7 @@ class TEezzAgent(HTMLParser):
     # --------------------------------------------------------
     # Work with HTTP server requests
     # --------------------------------------------------------
-    def handle_request(self, aFile, aForm, aSession=False, aJsonObj=None):
+    def handle_request(self, aFile, aForm=None, aSession=False, aJsonObj=None):
         aParent  = self.mTagStack[0]
         try:     
             if aJsonObj:
@@ -469,12 +469,8 @@ class TEezzAgent(HTMLParser):
                 if aJsonObj and aJsonObj.get('arguments'):
                     self.mArguments =  aJsonObj.get('arguments')
 
-                self.mSession = aSession
-                if aFile:
-                    if aFile[0] == os.path.sep:
-                        self.mCurrentDocument = aFile[1:]
-                    else:
-                        self.mCurrentDocument = aFile
+                self.mSession         = aSession
+                self.mCurrentDocument = aFile
                         
                 aParent.mInnerHtml = io.StringIO()        
                 with open(self.mCurrentDocument, 'r') as aFile:
