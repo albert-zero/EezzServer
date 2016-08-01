@@ -29,6 +29,7 @@ import hashlib
 import base64
 import select
 import json
+import time
 import threading
 from   eezz.agent import TEezzAgent
   
@@ -270,7 +271,26 @@ class TWebSocketClient():
                 self.mSocket.send(xMasked)
             else:
                 self.mSocket.sendall(aData)
-        
+
+# ------------------------------------------------------------
+# Manage the web socket port
+# ------------------------------------------------------------
+class TWakeup(threading.Thread):
+    mCvExtern = threading.Condition()
+
+    def __init__(self):
+        super().__init__()
+    
+    def run(self): 
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as xSocket:
+            xSocket.bind(('127.0.0.1', 63000))
+            xSocket.listen(1)
+            
+            while True:
+                con, adr = xSocket.accept()
+                with TWakeup.mCvExtern:
+                    TWakeup.mCvExtern.notify_all()
+            
 # ------------------------------------------------------------
 # Manage the web socket port
 # ------------------------------------------------------------
@@ -282,9 +302,12 @@ class TWebSocket(threading.Thread):
     def __init__(self, aWebAddress):
         self.mWebAddr         = aWebAddress
         self.mClients         = dict()
-        self.mRunning         = True
-        self.mWebSocketServer = None
+        self.mRunning         = False
         super().__init__()
+
+    
+    def isRunning(self):
+        return self.mRunning
         
     # --------------------------------------------------------
     # --------------------------------------------------------
@@ -296,17 +319,23 @@ class TWebSocket(threading.Thread):
     # --------------------------------------------------------
     def run(self):   
         self.mWebSocketServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.mWebSocketServer.bind(self.mWebAddr)
+        self.mWebSocketServer.bind((self.mWebAddr[0], self.mWebAddr[1]))
         self.mWebSocketServer.listen(15)
-        aReadList  = [self.mWebSocketServer]
-        
-        # aWebSocket.settimeout(60)
-        print('websocket {} at {}'.format(self.mWebAddr[0], self.mWebAddr[1]))
 
-        while self.mRunning:
+        aReadList  = [self.mWebSocketServer]        
+        # aWebSocket.settimeout(60)
+        
+        print('websocket {} at {}'.format(self.mWebAddr[0], self.mWebAddr[1]))
+        
+        self.mRunning = True
+                
+        while self.mRunning:            
             xRd, xWr, xErr = select.select(aReadList, [], aReadList)
             
-            for xSocket in xErr:
+            if not xRd and not xWr and not xErr:
+                continue
+                            
+            for xSocket in xErr:                
                 if xSocket is self.mWebSocketServer:
                     xSocket.close()
                     aReadList.remove(xSocket)                    

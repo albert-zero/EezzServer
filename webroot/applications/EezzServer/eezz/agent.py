@@ -27,13 +27,14 @@ import html
 from   html.parser   import HTMLParser
 import importlib
 import urllib
+from   urllib        import parse
 import gettext
-from   collections    import deque
+from   collections   import deque
 import json
 import threading
 
-from   eezz.table          import TTable, TCell
-from   eezz.service        import TBlackBoard
+from   eezz.table    import TTable, TCell
+from   eezz.service  import TBlackBoard
 
 
 # --------------------------------------------------------
@@ -587,7 +588,7 @@ class TEezzAgent(HTMLParser):
     # Set the new language
     # --------------------------------------------------------
     def set_language(self, language='en_EN'):
-        xLocaleDir     = os.path.join('..','resources', 'locales')
+        xLocaleDir     = os.path.join(self.mBlackboard.mDocRoot, '..','resources', 'locales')
         self.mLanguage = gettext.translation(self.mCurrDomain, localedir=xLocaleDir, languages=[language])
         
     # --------------------------------------------------------
@@ -671,7 +672,7 @@ class TEezzAgent(HTMLParser):
                         if not isinstance(self.mGlobals.get(xName), TTable):
                             continue
 
-                    xRoot      = os.path.join( os.path.split(os.getcwd())[0], 'applications' )                                                            
+                    xRoot      = os.path.join(self.mBlackboard.mDocRoot, '..',  'applications' )                                                            
                     xPathParts = xPathClass.replace('/', os.path.sep).rsplit(os.path.sep, 2)
 
                     if len(xPathParts) == 3:
@@ -950,7 +951,7 @@ class TEezzAgent(HTMLParser):
             pass
         
         aWebSocketScript = ""
-        xResoucePath     = os.path.join('..', 'resources', 'websocket.js')
+        xResoucePath     = os.path.join(self.mBlackboard.mDocRoot, '..', 'resources', 'websocket.js')
 
         try:
             with open(xResoucePath, 'r') as xFile:
