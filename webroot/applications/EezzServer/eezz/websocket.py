@@ -23,13 +23,14 @@ Description:
    https://tools.ietf.org/html/rfc6455
  
 """
-import io, socket, struct
+import io
+import struct
+import socket
 # from   Crypto.Hash import SHA
 import hashlib
 import base64
 import select
 import json
-import time
 import threading
 from   eezz.agent import TEezzAgent
   
@@ -55,6 +56,7 @@ class TWebSocketClient():
         self.mCnt     = 0
         self.mBuffer  = None
         self.mLock    = threading.Lock()
+        self.mProtocol= str()
         
     # --------------------------------------------------------             
     # thread main method
@@ -79,6 +81,20 @@ class TWebSocketClient():
                 self.mAgent  = TEezzAgent(None, self.mAddress, self)
                 self.mBuffer = bytearray(65536*2)
                 return None
+            
+            if self.mProtocol == 'peezz':
+                xJsonStr     = self.mSocket.recv(1024)
+                xJsonObj     = json.loads(xJsonStr.decode('utf-8'))
+                
+                if 'file' in xJsonObj:
+                    xStream   = self.mSocket.recv(65536*2)
+                    xJsonResp = self.mAgent.handle_download(xJsonObj, xStream)                            
+                else:
+                    aResponse = self.mAgent.handle_websocket(xJsonObj)
+                
+                if aResponse != None:
+                    self.socket.send(aResponse.encode('utf-8'))
+                return
             
             xFinal = False
             while not xFinal:
@@ -125,9 +141,13 @@ class TWebSocketClient():
             raise TWebSocketException('update: connection closed');
 
         aResponse = self.mAgent.handle_websocket(aJsonObj, False)
+        
         if aResponse != None:
             try:
-                self.writeFrame(aResponse.encode('utf-8'))                 
+                if self.mProtocol == 'peezz':
+                    self.socket.send(aResponse.encode('utf-8'))
+                else:
+                    self.writeFrame(aResponse.encode('utf-8'))                 
             except:
                 self.mState = -1;
                 raise
@@ -136,13 +156,16 @@ class TWebSocketClient():
     # Define the handshake
     # --------------------------------------------------------
     def genHandshake(self, aData):
-        xLines        = aData.splitlines()
-        self.mHeaders = dict([ x.split(':', 1) for x in xLines[1:] if ':' in x])
+        xKey           = 'accept'
+        xLines         = aData.splitlines()
+        self.mHeaders  = dict([ x.split(':', 1) for x in xLines[1:] if ':' in x])
+        self.mProtocol = self.mHeaders.get('Upgrade') 
         
-        try:
-            xKey          = self.genKey()
-        except:
-            pass
+        if 'websocket' in self.mProtocol:        
+            try:
+                xKey = self.genKey()
+            except:
+                pass
         
         with io.StringIO() as xHandshake:
             xHandshake.write('HTTP/1.1 101 Switching Protocols\r\n')
