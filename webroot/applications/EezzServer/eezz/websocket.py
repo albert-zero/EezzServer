@@ -161,7 +161,7 @@ class TWebSocketClient():
         self.mHeaders  = dict([ x.split(':', 1) for x in xLines[1:] if ':' in x])
         self.mProtocol = self.mHeaders.get('Upgrade') 
         
-        if 'websocket' in self.mProtocol:        
+        if self.mProtocol != 'peezz':        
             try:
                 xKey = self.genKey()
             except:
