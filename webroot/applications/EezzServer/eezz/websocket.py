@@ -84,6 +84,9 @@ class TWebSocketClient():
             
             if self.mProtocol == 'peezz':
                 xJsonStr     = self.mSocket.recv(1024)
+                if not xJsonStr:
+                    return
+                
                 xJsonObj     = json.loads(xJsonStr.decode('utf-8'))
                 
                 if 'file' in xJsonObj:
@@ -93,7 +96,7 @@ class TWebSocketClient():
                     aResponse = self.mAgent.handle_websocket(xJsonObj)
                 
                 if aResponse != None:
-                    self.socket.send(aResponse.encode('utf-8'))
+                    self.mSocket.sendall(aResponse.encode('utf-8'))
                 return
             
             xFinal = False
@@ -161,11 +164,11 @@ class TWebSocketClient():
         self.mHeaders  = dict([ x.split(':', 1) for x in xLines[1:] if ':' in x])
         self.mProtocol = self.mHeaders.get('Upgrade') 
         
-        if self.mProtocol != 'peezz':        
-            try:
+        try:
+            if self.mProtocol != 'peezz':        
                 xKey = self.genKey()
-            except:
-                pass
+        except:
+            pass
         
         with io.StringIO() as xHandshake:
             xHandshake.write('HTTP/1.1 101 Switching Protocols\r\n')
@@ -281,6 +284,10 @@ class TWebSocketClient():
             else:
                 xBytes[xPos] = (xPayloadLen) | xMasked
                 xPos += 1
+
+            if xMasked:
+                xBytes[xPos:xPos+4] = aMaskVector
+                xPos += 4
             
             self.mSocket.send(xBytes[0:xPos])
             if xPayloadLen == 0:

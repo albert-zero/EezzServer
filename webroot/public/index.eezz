@@ -1,0 +1,31 @@
+<html>
+<body>
+    <!-- The eezz header -------------------------------------------------------  -->
+    <!-- --------------- -------------------------------------------------------  -->
+    <table style="width:100%; ">
+        <tr>
+            <td style="width:5%"><hr class="clHrThick"/><hr class="clHrThin"/></td>
+            <td style="width:0"><h1 style="color:#e8662b; white-space:nowrap">eezz server page example</h1></td>
+            <td style="width:75%"><hr class="clHrThick"/><hr class="clHrThin"/></td>
+            <td style="width:0px"></td>
+            <td style="width:5%"><hr class="clHrThick"/><hr class="clHrThin"/></td>
+        </tr>
+    </table>
+    
+    
+   	<h2>Examples for fast development</h2>
+   	<ul><li>Running without JavaScript or CGI</li>
+   		<li>Using WebSocket allows async calls and update</li></ul>
+
+<table>
+	<tr>
+		<td><a href="esptest.eezz">Master-Detail-View</a></td></tr>
+	<tr>
+		<td><a href="esptree.html">Tree-View</a></td></tr>
+    <tr>
+        <td><a href="slider.html">Slider for LED</a></td></tr>
+</table>
+
+
+</body>
+</html>
