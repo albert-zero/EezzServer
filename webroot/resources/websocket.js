@@ -260,24 +260,27 @@ function readFiles(aHeader) {
     
     for (var i = 0; i < aHeader["files"].length; i++) {
         aElem       = document.getElementsByName(aHeader["files"][i]["source"])[0];
-        var xFile   = aElem.files[0];
-        var xReader = new FileReader();
-        
-        var xJson   = {
-            "file": { 
-                "chunkSize": xFile.size,
-                "size"     : xFile.size, 
-                "name"     : xFile.name,
-                "source"   : aHeader["files"][i]["source"],
-                "type"     : aHeader["files"][i]["type"]
-            }, 
-            "reader"   :  aHeader.reader,
-            "update"   :  aHeader["files"][i]["update"],
-            "progress" :  aHeader["files"][i]["progress"],
-            "chunkSize":  aHeader.chunkSize
-            };
-       
-        readOneFile(xJson, xFile);
+    
+        for (var j = 0; j < aElem.files.length; j++) {
+	        var xFile   = aElem.files[j];
+	        var xReader = new FileReader();
+	        
+	        var xJson   = {
+	            "file": { 
+	                "chunkSize": xFile.size,
+	                "size"     : xFile.size, 
+	                "name"     : xFile.name,
+	                "source"   : aHeader["files"][i]["source"],
+	                "type"     : aHeader["files"][i]["type"]
+	            }, 
+	            "reader"   :  aHeader.reader,
+	            "update"   :  aHeader["files"][i]["update"],
+	            "progress" :  aHeader["files"][i]["progress"],
+	            "chunkSize":  aHeader.chunkSize
+	            };
+	       
+	        readOneFile(xJson, xFile);
+        }
     }
 }            
 
