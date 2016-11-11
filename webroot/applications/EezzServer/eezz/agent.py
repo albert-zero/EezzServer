@@ -317,8 +317,14 @@ class TEezzAgent(HTMLParser):
                 xClassName, xMethodName = aJsonObj['reader'].split('.') 
                 xMethod   = getattr(self.mGlobals.get(xClassName), xMethodName)
                 xResponse = xMethod(aJsonObj, None)
+                
+                if 'update' in xResponse:
+                    if 'update' in aJsonObj:
+                        aJsonObj['update'].update(xResponse['update'])
+                    else:
+                        aJsonObj['update'] = xResponse['update']                        
             except AttributeError:
-                pass            
+                pass
 
         # normal processing
         if 'path' in aJsonObj: 

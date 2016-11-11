@@ -178,8 +178,7 @@ function eezzTreeInsert(aElementId, aNodeElement) {
 	aElement.innerHTML = '';
 
 	// Create a new entry ---
-	var xTd     = document.createElement('td');
-
+	var xTd         = document.createElement('td');
 	var xTableHead  = document.createElement('table');
 	var xTableBody  = document.createElement('table');
     
@@ -259,7 +258,7 @@ function readFiles(aHeader) {
     asyncFileCnt      = 0;
     
     for (var i = 0; i < aHeader["files"].length; i++) {
-        aElem       = document.getElementsByName(aHeader["files"][i]["source"])[0];
+        aElem = document.getElementsByName(aHeader["files"][i]["source"])[0];
     
         for (var j = 0; j < aElem.files.length; j++) {
 	        var xFile   = aElem.files[j];
@@ -267,15 +266,12 @@ function readFiles(aHeader) {
 	        
 	        var xJson   = {
 	            "file": { 
-	                "chunkSize": xFile.size,
 	                "size"     : xFile.size, 
 	                "name"     : xFile.name,
-	                "source"   : aHeader["files"][i]["source"],
+	                "progress" : aHeader["files"][i]["progress"]
 	                "type"     : aHeader["files"][i]["type"]
 	            }, 
 	            "reader"   :  aHeader.reader,
-	            "update"   :  aHeader["files"][i]["update"],
-	            "progress" :  aHeader["files"][i]["progress"],
 	            "chunkSize":  aHeader.chunkSize
 	            };
 	       
