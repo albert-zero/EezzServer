@@ -67,12 +67,16 @@
     <table class = "eezzDatabase" 
            name  = "aTexteDB" 
            data-eezz-template = "database" 
-           data-docid         = "{guid}">
+           >
         
         <tr data-eezz-template="{'display':{'type':201}}"><td>_("Files successfully downloaded")</td></tr>
         <tr data-eezz-template="{'display':{'type':601}}"><td>_("601 - JSON parser error at [{0}:{1}]: {2} = {3}") </td></tr>
         <tr data-eezz-template="{'display':{'type':605}}"><td>_("605 - HTML parser error at [{0}:{1}]: {3} != {2}")</td></tr>
         <tr data-eezz-template="{'display':{'type':610}}"><td>_("610 - class/method not found: {1}")               </td></tr>
+
+        <tr data-eezz-template="{'table-rows':[':']}"> 
+            <td data-eezz-template="{'table-columns':[':']}">{}</td></tr>
+
     </table>
     
 

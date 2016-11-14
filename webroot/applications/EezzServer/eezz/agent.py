@@ -186,25 +186,28 @@ class TEezzAgent(HTMLParser):
             xKeyText  = '{}.{}'.format(aJsonObj['file']['progress'], 'innerHTML')
             xKeyWidth = '{}.{}'.format(aJsonObj['file']['progress'], 'style.width')
             xProgress = xJsonResp['progress']
-            aJsonObj['update'].update( {xKeyText : '{}%'.format(xProgress)} )
-            aJsonObj['update'].update( {xKeyWidth: '{}%'.format(xProgress)} )
+            aJsonObj['update'].update( {xKeyText : '{}%25'.format(xProgress)} )
+            aJsonObj['update'].update( {xKeyWidth: '{}%25'.format(xProgress)} )
         except KeyError:
             pass
         
         xCode = xJsonResp['return']['code']
         
         if xCode > 200:        
-            with self.mLock:
-                self.mTraceStack.append(aCell=TCell(aType=xCode, aObject=[ xJsonResp['return']['value'] ]))
-                xDatabase = self.evalTraceReturn( aJsonObj )
-                if xDatabase:
-                    xContent = urllib.parse.quote( xDatabase.mInnerHtml.getValue() )
-                    aJsonObj['update'].update( {xDatabase.get('name') + '.innerHTML':xContent} )
-        
+            try:
+                with self.mLock:
+                    self.mTraceStack.append(aCell=TCell(aType=xCode, aObject=[ xJsonResp['return']['value'] ]))
+                    xDatabase = self.evalTraceReturn( aJsonObj )
+                    if xDatabase:
+                        xContent = urllib.parse.quote( xDatabase.mInnerHtml.getvalue() )
+                        aJsonObj['update'].update( {xDatabase.get('name') + '.innerHTML':xContent} )
+            except Exception as xEx:
+                pass
+                
         #for xKey, xValue in aJsonObj['update'].items(): 
         #    aJsonObj['update'][xKey] = urllib.parse.quote(xValue.encode('utf-8'))
       
-        return json.dumps( aJsonObj )
+        return aJsonObj
 
     # --------------------------------------------------------
     # --------------------------------------------------------
@@ -343,7 +346,7 @@ class TEezzAgent(HTMLParser):
             xDatabase    = self.evalTraceReturn( aJsonObj )
             xTraceUpdate = dict()
             if xDatabase:
-                xContext = xDatabase.mInnerHtml.getValue()
+                xContext = xDatabase.mInnerHtml.getvalue()
                 xTraceUpdate['update'] = {xDatabase.get('name') + '.innerHTML':'*'}
 
             # Nothing to update,- so we could return here
