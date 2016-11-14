@@ -172,57 +172,39 @@ class TEezzAgent(HTMLParser):
     # Handle file downloads
     # --------------------------------------------------------
     def handle_download(self, aJsonObj, aStream):
-        try:
-            aJsonObj['return'] = {'code':200, 'value':'OK'}
-            
-            xCallPath = aJsonObj['reader'].split('.') 
-            xClassName, xMethodName = xCallPath
-            xMethod   = getattr(self.mGlobals.get(xClassName), xMethodName)
-            xJsonResp = xMethod(aJsonObj, aStream)  
-                  
-            try:
-                if isinstance(xJsonResp, dict):
-                    aJsonObj['return'] = xJsonResp.get('return')
-                    xCode  = xJsonResp['return']['code']
-                    xValue = xJsonResp['return']['value']
-                    xArgs  = xJsonResp['return'].get('args')
-                    
-                    if xJsonResp['return'].get('progress'):
-                        xValue = xJsonResp['return']['progress']
-                        aJsonObj['update'] = dict()
-                        
-                        for xKey in aJsonObj.get('progress'):
-                            aJsonObj['update'][xKey] = "{}%".format(xValue)
-                                        
-                    if xCode != 101 and xCode != 200: 
-                        if isinstance(xValue, TCell):
-                            self.mTraceStack.append(aCell=xValue)
-                        else:
-                            xList = [ xValue ]
-                            if isinstance(xArgs, list):
-                                xList += xArgs
-                            self.mTraceStack.append(aCell=TCell(aType=xCode, aObject=xList))
-            except KeyError:
-                self.mTraceStack.append(aCell=TCell(aType=xCode, aObject=[xValue]))
-            except AttributeError:
-                pass
-
-        except AttributeError as xEx:
-            self.mTraceStack.append(aCell=TCell( aType=409, aObject=[xCallPath]))
+        aJsonObj['return'] = {'code':200, 'value':'OK'}
         
-        xTraceUpdate = dict()
-        with self.mLock:
-            xDatabase = self.evalTraceReturn(aJsonObj)
-            if xDatabase:
-                xTraceUpdate['update'] = {xDatabase.get('name') + '.innerHTML':'*'}
-            
-        xUpdateQuotes = dict()    
-        if aJsonObj.get('update'):
-            aJsonObj.update(xTraceUpdate)
-            for xKey, xValue in aJsonObj['update'].items(): 
-                xUpdateQuotes[xKey] = urllib.parse.quote(xValue.encode('utf-8'))
-            aJsonObj['update'] = xUpdateQuotes
-        return aJsonObj
+        xCallPath = aJsonObj['reader'].split('.') 
+        xClassName, xMethodName = xCallPath
+        xMethod   = getattr(self.mGlobals.get(xClassName), xMethodName)
+        xJsonResp = xMethod(aJsonObj, aStream)  
+        
+        aJsonObj['return'] = xJsonResp['return']
+        aJsonObj['update'] = dict()
+        
+        try:
+            xKeyText  = '{}.{}'.format(aJsonObj['file']['progress'], 'innerHTML')
+            xKeyWidth = '{}.{}'.format(aJsonObj['file']['progress'], 'style.width')
+            xProgress = xJsonResp['progress']
+            aJsonObj['update'].update( {xKeyText : '{}%'.format(xProgress)} )
+            aJsonObj['update'].update( {xKeyWidth: '{}%'.format(xProgress)} )
+        except KeyError:
+            pass
+        
+        xCode = xJsonResp['return']['code']
+        
+        if xCode > 200:        
+            with self.mLock:
+                self.mTraceStack.append(aCell=TCell(aType=xCode, aObject=[ xJsonResp['return']['value'] ]))
+                xDatabase = self.evalTraceReturn( aJsonObj )
+                if xDatabase:
+                    xContent = urllib.parse.quote( xDatabase.mInnerHtml.getValue() )
+                    aJsonObj['update'].update( {xDatabase.get('name') + '.innerHTML':xContent} )
+        
+        #for xKey, xValue in aJsonObj['update'].items(): 
+        #    aJsonObj['update'][xKey] = urllib.parse.quote(xValue.encode('utf-8'))
+      
+        return json.dumps( aJsonObj )
 
     # --------------------------------------------------------
     # --------------------------------------------------------
@@ -310,21 +292,16 @@ class TEezzAgent(HTMLParser):
     # --------------------------------------------------------
     def handle_websocket(self, aJsonObj, aSession = True):
         # prepare file download  
-        if aJsonObj and aJsonObj.get('callback'):
-            print('command : ', aJsonObj.get('callback'))      
+        #if aJsonObj and aJsonObj.get('callback'):
+        #    print('command : ', aJsonObj.get('callback'))      
+        
         if 'files' in aJsonObj.keys():
-            try:        
-                xClassName, xMethodName = aJsonObj['reader'].split('.') 
-                xMethod   = getattr(self.mGlobals.get(xClassName), xMethodName)
-                xResponse = xMethod(aJsonObj, None)
-                
-                if 'update' in xResponse:
-                    if 'update' in aJsonObj:
-                        aJsonObj['update'].update(xResponse['update'])
-                    else:
-                        aJsonObj['update'] = xResponse['update']                        
-            except AttributeError:
-                pass
+            xClassName, xMethodName = aJsonObj['reader'].split('.') 
+            xMethod   = getattr(self.mGlobals.get(xClassName), xMethodName)
+            xResponse = xMethod(aJsonObj, None)
+            
+            if xResponse['return']['code'] > 201:
+                self.mTraceStack.append(aCell=TCell(aType=xResponse['return']['code'], aObject=[xResponse['return']['value']])) 
 
         # normal processing
         if 'path' in aJsonObj: 
@@ -346,7 +323,7 @@ class TEezzAgent(HTMLParser):
         # execute the parser as session
         try:
             # Evaluate WebSocket 
-            xResponse = self.handle_request(self.mCurrentDocument, None, aSession, aJsonObj)
+            self.handle_request(self.mCurrentDocument, None, aSession, aJsonObj)
         except Exception as xEx:
             pass
             raise xEx
@@ -366,11 +343,15 @@ class TEezzAgent(HTMLParser):
             xDatabase    = self.evalTraceReturn( aJsonObj )
             xTraceUpdate = dict()
             if xDatabase:
+                xContext = xDatabase.mInnerHtml.getValue()
                 xTraceUpdate['update'] = {xDatabase.get('name') + '.innerHTML':'*'}
 
             # Nothing to update,- so we could return here
             if 'update' not in aJsonObj:
-                return None
+                if 'files' in aJsonObj:
+                    aJsonObj['update'] = dict()
+                else:
+                    return None
             
             # put the section for update into the json request
             try:

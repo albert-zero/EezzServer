@@ -26,7 +26,7 @@ function eezzConnect() {
     
     /* Error handling: Reopen connection */
     /* --------------------------------- */
-    eezzWebSocket.onerror = function(aError) {   
+    eezzWebSocket.onerror = function(aError) { 
         if (xEezzStatus.length > 0) {
         	xEezzStatus[0].innerHTML = 'disconnected: <button onclick="eezzConnect()">reconnect</button>';
         }
@@ -268,7 +268,7 @@ function readFiles(aHeader) {
 	            "file": { 
 	                "size"     : xFile.size, 
 	                "name"     : xFile.name,
-	                "progress" : aHeader["files"][i]["progress"]
+	                "progress" : aHeader["files"][i]["progress"],
 	                "type"     : aHeader["files"][i]["type"]
 	            }, 
 	            "reader"   :  aHeader.reader,

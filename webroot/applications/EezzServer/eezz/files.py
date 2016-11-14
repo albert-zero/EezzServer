@@ -122,14 +122,8 @@ class TFileDownloader:
     # -------------------------------------------------------------
     # Callback from user interface: Collect all files
     # -------------------------------------------------------------
-    def readFiles(self, aHeader, aStream):
-        xUpdate  = dict()
-        xRetJson = dict()
-        
-        xRetJson['return'] = {"code":201, "value":"finished"}
-        
+    def readFiles(self, aHeader, aStream):        
         # first call with list of files
-        
         if 'files' in aHeader:
             try:
                 if not self.mFrobidden.search(aHeader['doc_root']):
@@ -141,7 +135,7 @@ class TFileDownloader:
             
             for xFileWriter in self.mFileMap.values():
                 if not xFileWriter.checkReady():
-                    return {"return":{"code":420, "value":"download in progress"}}
+                    return {"return":{"code":420, "value":"download in progress"}, "progress":0}
 
             self.mCounter   = 0
             self.mChunkSize = int( aHeader['chunkSize'] )
@@ -149,10 +143,10 @@ class TFileDownloader:
             for xFileWriter in self.mFileMap.values():
                 xFileWriter.reset()        
             
-            return {"return":{"code":101, "value":"ready for download"}}
+            return {"return":{"code":101, "value":"ready for download"}, "progress":0}
         
         if not 'file' in aHeader:
-            return {"return":{"code":500, "value":"Not files found"}}
+            return {"return":{"code":500, "value":"Not files found"}, "progress":0}
         
         # subsequent calls for each file in slices
         xFile       = aHeader['file']   
@@ -170,21 +164,11 @@ class TFileDownloader:
 
         for xLoader in self.mFileMap.values():
             if not xLoader.checkReady():
-                xRetJson['return'] = {"code":101, "value":"continue"}
                 xCurrProgress = xFileWriter.getLoad()
-                
-        try:
-            xKeyText  = '{}.{}'.format(xFile['progress'], 'innerHTML')
-            xKeyWidth = '{}.{}'.format(xFile['progress'], 'style.width')
-            xUpdate[xKeyText]  = '{}%25'.format(xCurrProgress)
-            xUpdate[xKeyWidth] = '{}%'.format(xCurrProgress)
-            xRetJson['update'] = xUpdate
-        except KeyError:
-            pass
-                
-        if xRetJson['return']['code'] == 201:                
-            self.mFileMap.clear()
-        return xRetJson
+                return {"return":{"code":101, "value":"ready for download"}, "progress": xCurrProgress}
+                        
+        self.mFileMap.clear()
+        return {"return":{"code":201, "value":"finished"}, "progress": 100}
     
     # -------------------------------------------------------------
     # -------------------------------------------------------------
