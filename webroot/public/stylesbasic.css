@@ -1,0 +1,109 @@
+
+html {
+    width             : 98%;
+    height            : 98%;
+    font-family       : "Corbel", Times, sans-serif;
+    font-size         : 12px;
+}
+
+select, input, button {
+    font-family       : "Corbel", Times, sans-serif;
+    font-size         : 12px;
+}
+
+table.eezzDetail {
+    border            : 1px solid black;
+    cursor            : pointer;
+    vertical-align    : top;
+    border-collapse   : collapse;
+}
+
+table.eezzDetail th {
+    border            : 1px solid black;
+    background        : linear-gradient( white, black );
+    /*background-color: #e8662b;*/
+    color             : white;
+}
+
+table.eezzDetail td {
+    border            : 1px solid black;
+    padding           : 2px 4px 2px 4px;
+}
+
+tr.eezzSelected {
+    background-color: #DDDDDD;    
+}
+
+.eezzInput {
+    border-radius     : 2px;
+    padding           : 1px 2px 1px 2px;
+}
+
+/* the progress bar: Invisible with 0% and then with bright eezz */
+div.eezzProgressInit {
+    margin-left      : 5px;
+    border-radius    : 2px;
+} 
+
+div.eezzProgress {
+    width            : 0%;
+    padding-left     : 5px; 
+    border-radius    : 4px;
+    background-color : #f8763b;    
+}
+
+td.eezzProgress {
+    width            : 50%;
+}
+
+td.eezzLabel {
+    white-space      : nowrap;
+    text-align       : right;
+    padding-right    : 4px;
+}
+
+/* The following styles are for EEZZ logo */
+hr.ezzzLogoThick {
+    border           : 1px inset white; 
+    color            : #e8662b; 
+    height           : 5px; 
+    margin-bottom    : 0px;
+    border-radius    : 2px;
+    background-color : #e8662b;
+}
+        
+hr.ezzzLogoThin {
+    border           : 1px inset white; 
+    color            : #e8662b; 
+    height           : 3px; 
+    margin-top       : 4px;
+    border-radius    : 2px;
+    background-color : #e8662b;
+}
+
+td.eezzLogoText {
+    white-space      : nowrap; 
+    text-shadow      : 1px 1px 0 black; 
+    position         : relative; 
+    top              : -4px;
+    color            : #e8662b; 
+    font-size        : 24px;    
+    font-weight      : bold;
+}
+
+img.eezzLogo {
+    color            : #e8662b; 
+    position         : relative; 
+    top              : 15px;    
+}
+span.eezzLogo {
+    color            : #e8662b;
+    position         : relative; 
+    left             : 20px; 
+    top              : -4px;
+}
+
+.eezzHelpText {
+    font-size        : 200%;
+}
+

@@ -84,9 +84,6 @@ class TWebSocketClient():
             
             if self.mProtocol == 'peezz':
                 xJsonStr     = self.mSocket.recv(1024)
-                if not xJsonStr:
-                    return
-                
                 xJsonObj     = json.loads(xJsonStr.decode('utf-8'))
                 
                 if 'file' in xJsonObj:
