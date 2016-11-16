@@ -880,7 +880,7 @@ class TEezzAgent(HTMLParser):
         aParent         = self.mTagStack[-1]
         aDictionary     = self.findDictionary()
 
-        if aParent.mTagName == 'style':
+        if aParent.mTagName in ['style', 'script']:
             aParent.mInnerHtml.write(aData)
             return
         
