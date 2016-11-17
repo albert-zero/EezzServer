@@ -647,7 +647,13 @@ class TEezzAgent(HTMLParser):
                                             xJsonObj[xArgKey][x1][x2] = None
                 
                 aHtmlTag[xKey] = urllib.parse.quote(json.dumps(xJsonObj))
-                                        
+                
+                if ('eezzAgent.assign' in xJsonObj and'eezzAgent.get_websocket' in xJsonObj['eezzAgent.assign']):
+                    if not aSession:
+                        xResponse = self.get_script();
+                        aHtmlTag.mInnerHtml.write(xResponse['return']['value']['websocket']);
+                    continue
+                
                 if ('eezzAgent.assign' in xJsonObj or 'eezzAgent.async' in xJsonObj) and aSession:
                     xAsignStm = dict()
                     xAsignStm.update(xJsonObj.get('eezzAgent.assign', dict())) 
@@ -870,10 +876,10 @@ class TEezzAgent(HTMLParser):
         aParent         = self.mTagStack[-1]
         aDictionary     = self.findDictionary()
 
-        if aParent.mTagName in ['style', 'script']:
+        if aParent.mTagName == 'style':
             aParent.mInnerHtml.write(aData)
             return
-        
+                
         try:
             xData = aData.format(**aDictionary)
         except (KeyError, TypeError, IndexError):

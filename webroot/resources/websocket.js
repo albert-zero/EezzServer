@@ -268,6 +268,7 @@ function readFiles(aHeader) {
 	            "file": { 
 	                "size"     : xFile.size, 
 	                "name"     : xFile.name,
+	                "source"   : aHeader["files"][i]["source"],
 	                "progress" : aHeader["files"][i]["progress"],
 	                "type"     : aHeader["files"][i]["type"]
 	            }, 
@@ -290,13 +291,31 @@ function easyClick(aEvent, aElement) {
     var aPost  = false;
     var aValue;
     var aChunkSize = 65536*2;
-
+    var aSigma;
+    
     aJson['name'] = aElement['name'];
         
     if (aJson.files) {
-        aJson['return'] = {code:0, values:[]};
-        aJson.chunkSize = aChunkSize;
+        aJson['return']  = {'code':0, 'value':[]};
+        aJson['sources'] = [];
+        aJson.chunkSize  = aChunkSize;
         aPost = true;
+        
+        // Evaluate the size for each input element also for multiple selections
+        // This ensures a smooth calculation of the progress
+        for (var i = 0; i < aJson["files"].length; i++) {
+            aElem  = document.getElementsByName(aJson["files"][i]["source"])[0];
+            aSigma = 0;
+            
+            if (aElem == null) {
+            	continue;
+            }
+            
+            for (var j = 0; j < aElem.files.length; j++) {
+            	aSigma += aElem.files[j].size;
+            }
+            aJson['sources'].push( { 'source':aJson["files"][i]["source"], 'size':aSigma } );
+        }
     }
 
     /* Generate a callback request */
