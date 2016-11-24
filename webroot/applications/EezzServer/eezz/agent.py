@@ -435,7 +435,7 @@ class TEezzAgent(HTMLParser):
                 xJsonResp = self.handle_websocket({'update':xUpdate}, False)
                 self.mWebClient.writeFrame( xJsonResp.encode('utf8') )
             
-            if self.mEvent.wait(4):
+            if self.mEvent.wait(1):
                 break
             
     # --------------------------------------------------------
@@ -876,7 +876,7 @@ class TEezzAgent(HTMLParser):
         aParent         = self.mTagStack[-1]
         aDictionary     = self.findDictionary()
 
-        if aParent.mTagName == 'style':
+        if aParent.mTagName == ['style', 'script']:
             aParent.mInnerHtml.write(aData)
             return
                 
