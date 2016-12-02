@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-    Copyright (C) 2015 www.EEZZ.biz (haftungsbeschränkt)
+    Copyright (C) 2015  Albert Zedlitz
 
+    TSource
+    Manages multiple file selections
+    
     TFileWriter
     Manages download of one files in slices
     
@@ -18,7 +21,25 @@ import json, math
 import re
 from   Crypto.Hash      import SHA256
 
-
+# -------------------------------------------------------------
+# TSource manages a source with multiple file selection
+# -------------------------------------------------------------
+class TSource():    
+    # -------------------------------------------------------------
+    # -------------------------------------------------------------
+    def __init__(self, aSigma):
+        self.mSigma   = aSigma
+        self.mCurrent = aSigma
+    # -------------------------------------------------------------
+    # -------------------------------------------------------------
+    def countdown(self, aSize):
+        self.mCurrent  = max(0, self.mCurrent - aSize)
+        return self.progress()
+    # -------------------------------------------------------------
+    # -------------------------------------------------------------
+    def progress(self):
+        return math.floor( 100.0 * (self.mSigma - self.mCurrent) / self.mSigma )
+        
 # -------------------------------------------------------------
 # Download manager
 # Encrypt data and create hash codes
@@ -26,8 +47,7 @@ from   Crypto.Hash      import SHA256
 class TFileWriter():
     # -------------------------------------------------------------
     # -------------------------------------------------------------    
-    def __init__(self, aHeader, aChunkSize, aFilePath):
-        
+    def __init__(self, aHeader, aChunkSize, aFilePath):        
         self.mName       = aFilePath
         self.mSize       = int( aHeader['size'] )
         self.mFileType   = aHeader['type']
@@ -59,7 +79,8 @@ class TFileWriter():
     # -------------------------------------------------------------
     # -------------------------------------------------------------    
     def getLoad(self):
-        return math.floor(100 * (self.mTransfered+1)/(self.mSize+1))
+        # return math.floor(100 * (self.mTransfered+1)/(self.mSize+1))
+        return self.mTransfered
 
     # -------------------------------------------------------------
     # -------------------------------------------------------------    
@@ -111,6 +132,7 @@ class TFileDownloader:
     # -------------------------------------------------------------
     def __init__(self, filename = None):        
         self.mFileMap      = dict() 
+        self.mSourceMap    = dict()
         self.mValues       = dict()
         self.mChunkSize    = 0
         self.mFilename     = str()
@@ -126,9 +148,13 @@ class TFileDownloader:
         # first call with list of files
         if 'files' in aHeader:
             try:
+                # A document root may contain only a restricted number of chars
                 if not self.mFrobidden.search(aHeader['doc_root']):
                     self.mDocumentId = aHeader['doc_root']
-            except KeyError:
+                # Create a manager for each source to follow the downloads
+                for xSource in aHeader['sources']:
+                    self.mSourceMap[xSource['source']] = TSource(xSource['size'])
+            except (KeyError, ValueError):
                 pass
             
             os.makedirs(os.path.join('documents', self.mDocumentId), exist_ok=True)
@@ -146,7 +172,7 @@ class TFileDownloader:
             return {"return":{"code":101, "value":"ready for download"}, "progress":0}
         
         if not 'file' in aHeader:
-            return {"return":{"code":500, "value":"Not files found"}, "progress":0}
+            return {"return":{"code":500, "value":"No source files found"}, "progress":0}
         
         # subsequent calls for each file in slices
         xFile       = aHeader['file']   
@@ -161,13 +187,16 @@ class TFileDownloader:
             self.mFileMap[xFile['name']] = xFileWriter
             
         xFileWriter.writeChunk( xFile, aStream )
+        xSource       = self.mSourceMap.get( xFile['source'] )
+        xCurrProgress = xSource.countdown( xFile['chunkSize'] ) 
 
-        for xLoader in self.mFileMap.values():
-            if not xLoader.checkReady():
-                xCurrProgress = xFileWriter.getLoad()
+        # Return code 200 only if all sources are finished with download
+        for xSource in self.mSourceMap.values():
+            if xSource.progress() < 100:
                 return {"return":{"code":101, "value":"ready for download"}, "progress": xCurrProgress}
                         
         self.mFileMap.clear()
+        self.mSourceMap.clear()
         return {"return":{"code":201, "value":"finished"}, "progress": 100}
     
     # -------------------------------------------------------------
