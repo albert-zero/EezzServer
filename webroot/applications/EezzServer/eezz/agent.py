@@ -648,11 +648,17 @@ class TEezzAgent(HTMLParser):
                 
                 aHtmlTag[xKey] = urllib.parse.quote(json.dumps(xJsonObj))
                 
-                if ('eezzAgent.assign' in xJsonObj and'eezzAgent.get_websocket' in xJsonObj['eezzAgent.assign']):
-                    if not aSession:
-                        xResponse = self.get_script();
-                        aHtmlTag.mInnerHtml.write(xResponse['return']['value']['websocket']);
-                    continue
+                if 'eezzAgent.assign' in xJsonObj:
+                    if 'eezzAgent.get_websocket' in xJsonObj['eezzAgent.assign']:
+                        if not aSession:
+                            xResponse = self.get_script();
+                            aHtmlTag.mInnerHtml.write(xResponse['return']['value']['websocket']);
+                        continue
+                    if 'eezzAgent.get_animation' in xJsonObj['eezzAgent.assign']:
+                        if not aSession:
+                            xResponse = self.get_animation();
+                            aHtmlTag.mInnerHtml.write(xResponse['return']['value']);
+                        continue
                 
                 if ('eezzAgent.assign' in xJsonObj or 'eezzAgent.async' in xJsonObj) and aSession:
                     xAsignStm = dict()
@@ -933,6 +939,18 @@ class TEezzAgent(HTMLParser):
 
         return aText
 
+
+    # --------------------------------------------------------
+    # --------------------------------------------------------
+    def get_animation(self):
+        xResoucePath     = os.path.join(self.mBlackboard.mDocRoot, '..', 'resources', 'animation.js')
+        try:
+            with open(xResoucePath, 'r') as xFile:
+                aScript = xFile.read()
+        except Exception as xEx:
+            return {'return':{'code':404, 'value': str(xEx) }}
+        return {'return':{'code':200, 'value': aScript }}
+    
     # --------------------------------------------------------
     # Generate java script
     # --------------------------------------------------------
@@ -953,7 +971,7 @@ class TEezzAgent(HTMLParser):
             with open(xResoucePath, 'r') as xFile:
                 aWebSocketScript = xFile.read()
         except Exception as xEx:
-            print(xEx)
+            return {'return':{'code':404, 'value': str(xEx) }}
             
         xHost, xPort = self.mCltAddr
         xText = '{}\n{}'.format(aWebSocketHeader.format(xHost, xPort), aWebSocketScript)
@@ -999,16 +1017,198 @@ class TEezzAgent(HTMLParser):
                 if i in aNames:
                     xNameInx.append(aNames.index(i))
         return xNameInx
+            
+    # --------------------------------------------------------
+    # --------------------------------------------------------
+    def generateTableSegment(self, aParent, aHtmlTag, aTableName):  
+        xTableTag    = aParent
+        xTableSeg    = aHtmlTag
+        xRowList     = list()
+        xTemplates   = list()
+        xTable       = None
+        xColumnNames = None
+        xTileLayout  = False
+        xColumnList  = list()
+        
+        if xTableTag == None:
+            xTableTag = xTableSeg
+        
+        if xTableSeg.mTagName == 'select':
+            xTable        = xTableSeg.mObject
+            xTblName      = aTableName
+        elif xTableSeg.mTagName == 'table':
+            xTable        = xTableSeg.mObject
+            xTblName      = aTableName
+        else:
+            xTable    = xTableTag.mObject
+            xTblName  = xTableTag.get('name')
+                      
+        xTableSeg.mInnerHtml = io.StringIO()
+
+        if xTable == None:
+            xTable    = xTableTag.mObject
+            xTblName  = xTableTag.get('name')
+            
+        if xTable != None:
+            xColumnNames  = xTable.get_columns()[0]
+            xTable.hasChanged()
+            
+        xTblUpdate = dict()
+        if xTableTag.mJsonObj and xTableTag.mJsonObj.get('update'):
+            xTblUpdate.update( xTableTag.mJsonObj.get('update') )
+        
+        # Remove elements                
+        for xTr in xTableSeg.mChildren:
+            if not xTr.mTagName in ['tr', 'option']:
+                continue
+                        
+            if xTr.mTagName == 'option':
+                xTr.mTemplate.update(xTableSeg.mTemplate)
+            
+            # A display attribute could reference the dictiponary or the value 
+            # list in the TCell object
+            if xTr.mTemplate.get('display'):
+                for xKey, xValue in xTr.mTemplate.get('display').items():
+                    xTemplates.append([xKey, xValue, xTr])
+            else:
+                xRowList.append(xTr)
+        
+        xTreeId = None
+        if xTable != None and xTableTag.get('class') in ['eezzTreeNode', 'eezzTreeLeaf']:
+            xTreeId = '{}:{}'.format(xTblName, xTable.mPath)
+        
+        for xTr in xRowList:
+            if xTable == None:
+                xColumnList = self.generateTableRow(xTableSeg, xTr, None, None)
+                self.generateTableCols( xTr, xColumnList )
+                xTableSeg.mInnerHtml.write( xTr.generateHtml() )
+                continue
+
+            if 'tiles' in xTr.mTemplate['table-rows']:
+                xNrTiles    = xTr.mTemplate['table-rows']['tiles']
+                xTileLayout = xNrTiles > 0
+            
+            if 'table-rows' in xTr.mTemplate:                    
+                if xTableSeg.mTagName == 'thead':
+                    xTrTemplate = THtmlTag(xTr.mTagName)
+                    xTrTemplate.update(xTr)                 
+                    xTrTemplate.mJsonObj  = xTr.mJsonObj
+                    xTrTemplate.mChildren = xTr.mChildren
+                    xTrTemplate.mValue    = xColumnNames
+                    xTrTemplate.mDictionary.update(xTableSeg.mDictionary)            
+
+                    xColumnList = self.generateTableRow(xTableSeg, xTrTemplate, xColumnNames, (xTblName, xTreeId, 'do_sort'))
+                    self.generateTableCols( xTrTemplate, xColumnList )
+                    xTableSeg.mInnerHtml.write( xTrTemplate.generateHtml() )
+                else:
+                    xColumnList = list()
+                    
+                    for xInx, xRows in enumerate(xTable.get_raw_rows()):
+                        xTrSave = xTr
+                        xCell   = xRows[0]                        
+                        xEvent  = dict()  
+                        xTblDic = dict()
+                        
+                        if len(xRows) > 1 and isinstance(xRows[1], TTable):
+                            xTblDic = xRows[1].mHeaderDic
+                            
+                        if isinstance(xCell, TCell):
+                            xEntry = [x[2] for x in xTemplates if x[0] == 'type' and x[1] == xCell.getType()]
+                            if xEntry:
+                                xTrSave     = xEntry[0]
+                                xTrTemplate = THtmlTag(xTrSave.mTagName)
+                                xTrTemplate.mDictionary.update(xTableSeg.mDictionary) 
+                                           
+                                if isinstance(xCell.getObject(), dict):
+                                    xTrTemplate.update(xCell.getObject())
+                                if isinstance(xCell.getObject(), list):
+                                    xTrTemplate.mValueList = xCell.getObject()
+                            else:
+                                xTrTemplate = THtmlTag(xTrSave.mTagName)
+                                xTrTemplate.update(xTrSave)
+                        else:
+                            xTrTemplate = THtmlTag(xTrSave.mTagName)
+                            xTrTemplate.update(xTrSave)
+                                
+                        xTrTemplate.mJsonObj    = xTrSave.mJsonObj
+                        xTrTemplate.mValue      = xRows
+                        xTrTemplate.mChildren   = xTrSave.mChildren
+                        xTrTemplate.mDictionary.update(xTableSeg.mDictionary)                        
+                            
+                        xEvtUpdate = dict()
+                        xTrsUpdate = dict()
+                        if xTrTemplate.mJsonObj:
+                            xTrsUpdate = xTrTemplate.mJsonObj.get('update', xTrsUpdate)
+                        
+                        if xTrSave.get('class') in ['eezzTreeNode', 'eezzTreeLeaf']:
+                            if isinstance(xRows[1], TTable):
+                                xSubTreeId = '{}:{}'.format(xTblName, xRows[1].mPath)
+                            else:
+                                xSubTreeId = xTreeId
+                                                              
+                            xSubTreeQt = urllib.parse.quote( xSubTreeId )
+                            xValue     = xTrsUpdate.get('this'+'.innerHTML', '*') 
+                            # xTreeId1    = 'id{}'.format(uuid.uuid1().time_low)
+                            if xTrSave.get('class') == 'eezzTreeNode':
+                                xEvtUpdate = {'{}.innerHTML.{}'.format(xTblName, xSubTreeQt): xValue}                        
+                                xEvtUpdate.update( xTblUpdate )
+                            xTrTemplate['id']    = xSubTreeQt
+                            xTrTemplate['class'] = xTrSave.get('class')
+
+                        if xTrSave.get('class') == 'eezzTreeLeaf':
+                            if xTable and xInx == xTable.get_selected_index():
+                                xTrTemplate['class'] = ' '.join(['eezzTreeLeaf','eezzSelected']) 
+                            
+                        if xTrSave.mJsonObj and xTrSave.mJsonObj.get('callback'):
+                            xEvtUpdate.update( xTblUpdate )
+                            xEvent['callback'] = xTrSave.mJsonObj.get('callback')
+                            xEvent['update']   = xEvtUpdate
+                        else:
+                            xEvtUpdate.update( xTblUpdate )
+                            xEvent['callback'] = {'{}.do_select'.format(xTblName) : {'index': str(xRows[0])}}
+                            xEvent['update']   = xEvtUpdate                                    
+            
+                        if xTrSave.mTagName == 'option':
+                            if xTableSeg.mJsonObj.get('update'):
+                                xEvtUpdate = xTableSeg.mJsonObj.get('update')
+                            xEvtUpdate.update( xTblUpdate )
+                            xEvent['update'] = xEvtUpdate
+                            xTrTemplate['data-eezz-event'] = urllib.parse.quote( json.dumps( xEvent) )
+                            xTrTemplate.mTemplate = xTrSave.mTemplate
+
+                            if xTable:
+                                if xInx == xTable.get_selected_index():
+                                    xTrTemplate['selected'] = 'selected'
+                                elif xTrTemplate.get('selected'):
+                                    del xTrTemplate['selected']                                    
+                            xColumnList = self.generateTableRow(xTableSeg, xTrTemplate, xColumnNames, None)
+                            self.generateTableCols( xTrTemplate, xColumnList )
+                            xTableSeg.mInnerHtml.write( xTrTemplate.generateHtml() )
+                        elif xTileLayout:
+                            xColumnList.extend( self.generateTableRow(xTableSeg, xTrTemplate, xColumnNames, (xTblName, xTreeId, xEvent), True) )
+                            
+                            if len(xColumnList) == xNrTiles or xInx == len(xTable) - 1:
+                                self.generateTableCols( xTrTemplate, xColumnList, xTileLayout )
+                                xTableSeg.mInnerHtml.write( xTrTemplate.generateHtml() )
+                                xColumnList = list()
+                        else:
+                            xTrTemplate['data-eezz-event'] = urllib.parse.quote( json.dumps( xEvent) )
+                            xColumnList = self.generateTableRow(xTableSeg, xTrTemplate, xColumnNames, (xTblName, xTreeId, None))
+                            self.generateTableCols( xTrTemplate, xColumnList )
+                            xTableSeg.mInnerHtml.write( xTrTemplate.generateHtml() )
+
+        if aParent != None:
+            aParent.mInnerHtml.write( aHtmlTag.generateHtml() )
 
     # --------------------------------------------------------
     # --------------------------------------------------------
-    def generateTableRow(self, aParent, aHtmlTag, aColumnNames, aJsnColEvt):
+    def generateTableRow(self, aParent, aHtmlTag, aColumnNames, aJsnColEvt, aTilesLayout = False):
         xTblRow     = aHtmlTag
         xColumnList = list()
         xColumnInx  = list()
         xTemplates  = list()
         xPrintCols  = list()
-        xTblRow.mInnerHtml = io.StringIO()
+        
         aTblId, aColCmd    = None, None
         
         for xKey, xValue in xTblRow.items():
@@ -1075,28 +1275,50 @@ class TEezzAgent(HTMLParser):
                 xNamedRange = xTd.mTemplate.get('table-columns')
                 xColumnInx  = self.evalRange(xNamedRange, aColumnNames)
                 
-                for i in xColumnInx:
-                    xTdSave = xTd
-                    if isinstance(xTblRow.mValue[i], TCell):
-                        xCell  = xTblRow.mValue[i]
+                if aTilesLayout:
+                    xTdSave     = xTd
+
+                    if isinstance(xTblRow.mValue[0], TCell):
+                        xCell  = xTblRow.mValue[0]
                         xEntry = [x[2] for x in xTemplates if x[0] == 'type' and x[1] == xCell.mType]
                         if xEntry:
-                            xTdSave = xEntry[0]
-                               
+                            xTdSave = xEntry[0]                    
+
                     xTdTemplate = THtmlTag(xTdSave.mTagName) 
                     xTdTemplate.update(xTdSave)
                     xTdTemplate.mChildren = xTdSave.mChildren
                     xTdTemplate.mJsonObj  = xTdSave.mJsonObj
                     
-                    if xTdSave.mTagName == 'cdata':
-                        xTdTemplate.mValue = xTdSave.mValue
-                    
                     if aColCmd:
-                        xEvent  = {'callback': {'{}.{}'.format(aTblName, aColCmd) : {'index': str(i)}}, 'update': xUpdate}                                    
-                        xTdTemplate['data-eezz-event'] = urllib.parse.quote( json.dumps(xEvent) )
-
-                    xTdTemplate.mColumnInx = i
-                    xPrintCols.append(xTdTemplate)
+                        xTdTemplate['data-eezz-event'] = urllib.parse.quote( json.dumps(aColCmd) )
+                        
+                    for i in xColumnInx:
+                        xTdTemplate.mDictionary[aColumnNames[i]] = str( xTblRow.mValue[i] )
+                        
+                    return [xTdTemplate]
+                else:            
+                    for i in xColumnInx:
+                        xTdSave = xTd
+                        if isinstance(xTblRow.mValue[i], TCell):
+                            xCell  = xTblRow.mValue[i]
+                            xEntry = [x[2] for x in xTemplates if x[0] == 'type' and x[1] == xCell.mType]
+                            if xEntry:
+                                xTdSave = xEntry[0]
+                                   
+                        xTdTemplate = THtmlTag(xTdSave.mTagName) 
+                        xTdTemplate.update(xTdSave)
+                        xTdTemplate.mChildren = xTdSave.mChildren
+                        xTdTemplate.mJsonObj  = xTdSave.mJsonObj
+                        
+                        if xTdSave.mTagName == 'cdata':
+                            xTdTemplate.mValue = xTdSave.mValue
+                        
+                        if aColCmd:
+                            xEvent  = {'callback': {'{}.{}'.format(aTblName, aColCmd) : {'index': str(i)}}, 'update': xUpdate}                                    
+                            xTdTemplate['data-eezz-event'] = urllib.parse.quote( json.dumps(xEvent) )
+    
+                        xTdTemplate.mColumnInx = i
+                        xPrintCols.append(xTdTemplate)
             else:
                 xTdSave = xTd                            
                 xTdTemplate = THtmlTag(xTdSave.mTagName) 
@@ -1109,179 +1331,28 @@ class TEezzAgent(HTMLParser):
                 
                 xPrintCols.append(xTdTemplate)
 
+        return xPrintCols
+    
 
-        for xTd in xPrintCols:
+    # --------------------------------------------------------
+    # --------------------------------------------------------
+    def generateTableCols(self, aHtmlTag, aColumnList, aTileLayout = False):
+        aHtmlTag.mInnerHtml = io.StringIO()
+        xDictionary         = aHtmlTag.mDictionary
+        
+        for xTd in aColumnList:
             xValueList     = list()
             xTd.mInnerHtml = io.StringIO()
-             
-            if xTd.mColumnInx and xTblRow.mValue:
-                xValueList += [ str(xTblRow.mValue[ xTd.mColumnInx ]) ]
-            if xTblRow.mValueList and xTblRow.mValueList:
-                xValueList += xTblRow.mValueList
+                             
+            if xTd.mColumnInx and aHtmlTag.mValue:
+                xValueList += [ str(aHtmlTag.mValue[ xTd.mColumnInx ]) ]
+            if aHtmlTag.mValueList and aHtmlTag.mValueList:
+                xValueList += aHtmlTag.mValueList
+            
+            if aTileLayout:
+                xDictionary = xTd.mDictionary
                  
-            self.generateHtml(xTblRow, xTd, xValueList, xTblRow.mDictionary) 
-            
-    # --------------------------------------------------------
-    # --------------------------------------------------------
-    def generateTableSegment(self, aParent, aHtmlTag, aTableName):  
-        xTableTag    = aParent
-        xTableSeg    = aHtmlTag
-        xRowList     = list()
-        xTemplates   = list()
-        xTable       = None
-        xColumnNames = None
-        
-        if xTableTag == None:
-            xTableTag = xTableSeg
-        
-        if xTableSeg.mTagName == 'select':
-            xTable        = xTableSeg.mObject
-            xTblName      = aTableName
-        elif xTableSeg.mTagName == 'table':
-            xTable        = xTableSeg.mObject
-            xTblName      = aTableName
-        else:
-            xTable    = xTableTag.mObject
-            xTblName  = xTableTag.get('name')
-                      
-        xTableSeg.mInnerHtml = io.StringIO()
-
-        if xTable == None:
-            xTable    = xTableTag.mObject
-            xTblName  = xTableTag.get('name')
-            
-        if xTable != None:
-            xColumnNames  = xTable.get_columns()[0]
-            xTable.hasChanged()
-            
-        xTblUpdate = dict()
-        if xTableTag.mJsonObj and xTableTag.mJsonObj.get('update'):
-            xTblUpdate.update( xTableTag.mJsonObj.get('update') )
-        
-        # Remove elements                
-        for xTr in xTableSeg.mChildren:
-            if not xTr.mTagName in ['tr', 'option']:
-                continue
-                        
-            if xTr.mTagName == 'option':
-                xTr.mTemplate.update(xTableSeg.mTemplate)
-            
-            # A display attribute could reference the dictiponary or the value 
-            # list in the TCell object
-            if xTr.mTemplate.get('display'):
-                for xKey, xValue in xTr.mTemplate.get('display').items():
-                    xTemplates.append([xKey, xValue, xTr])
-            else:
-                xRowList.append(xTr)
-        
-        xTreeId = None
-        if xTable != None and xTableTag.get('class') in ['eezzTreeNode', 'eezzTreeLeaf']:
-            xTreeId = '{}:{}'.format(xTblName, xTable.mPath)
-        
-        for xTr in xRowList:
-            if xTable == None:
-                self.generateTableRow(xTableSeg, xTr, None, None)
-                xTableSeg.mInnerHtml.write( xTr.generateHtml() )
-                continue
-            
-            if 'table-rows' in xTr.mTemplate:                    
-                if xTableSeg.mTagName == 'thead':
-                    xTrTemplate = THtmlTag(xTr.mTagName)
-                    xTrTemplate.update(xTr)                 
-                    xTrTemplate.mJsonObj  = xTr.mJsonObj
-                    xTrTemplate.mChildren = xTr.mChildren
-                    xTrTemplate.mValue    = xColumnNames
-                    xTrTemplate.mDictionary.update(xTableSeg.mDictionary)            
-                    self.generateTableRow(xTableSeg, xTrTemplate, xColumnNames, (xTblName, xTreeId, 'do_sort'))
-                    xTableSeg.mInnerHtml.write( xTrTemplate.generateHtml() )
-                else:
-                    for xInx, xRows in enumerate(xTable.get_raw_rows()):
-                        xTrSave = xTr
-                        xCell   = xRows[0]                        
-                        xEvent  = dict()  
-                        xTblDic = dict()
-                        if len(xRows) > 1 and isinstance(xRows[1], TTable):
-                            xTblDic = xRows[1].mHeaderDic
-                            
-                        if isinstance(xCell, TCell):
-                            xEntry = [x[2] for x in xTemplates if x[0] == 'type' and x[1] == xCell.getType()]
-                            if xEntry:
-                                xTrSave     = xEntry[0]
-                                xTrTemplate = THtmlTag(xTrSave.mTagName)
-                                xTrTemplate.mDictionary.update(xTableSeg.mDictionary) 
-                                           
-                                if isinstance(xCell.getObject(), dict):
-                                    xTrTemplate.update(xCell.getObject())
-                                if isinstance(xCell.getObject(), list):
-                                    xTrTemplate.mValueList = xCell.getObject()
-                            else:
-                                xTrTemplate = THtmlTag(xTrSave.mTagName)
-                                xTrTemplate.update(xTrSave)
-                        else:
-                            xTrTemplate = THtmlTag(xTrSave.mTagName)
-                            xTrTemplate.update(xTrSave)
-                                
-                        xTrTemplate.mJsonObj    = xTrSave.mJsonObj
-                        xTrTemplate.mChildren   = xTrSave.mChildren
-                        xTrTemplate.mValue      = xRows
-                        xTrTemplate.mDictionary.update(xTableSeg.mDictionary)            
-                            
-                        xEvtUpdate = dict()
-                        xTrsUpdate = dict()
-                        if xTrTemplate.mJsonObj:
-                            xTrsUpdate = xTrTemplate.mJsonObj.get('update', xTrsUpdate)
-                        
-                        if xTrSave.get('class') in ['eezzTreeNode', 'eezzTreeLeaf']:
-                            if isinstance(xRows[1], TTable):
-                                xSubTreeId = '{}:{}'.format(xTblName, xRows[1].mPath)
-                            else:
-                                xSubTreeId = xTreeId
-                                                              
-                            xSubTreeQt = urllib.parse.quote( xSubTreeId )
-                            xValue     = xTrsUpdate.get('this'+'.innerHTML', '*') 
-                            # xTreeId1    = 'id{}'.format(uuid.uuid1().time_low)
-                            if xTrSave.get('class') == 'eezzTreeNode':
-                                xEvtUpdate = {'{}.innerHTML.{}'.format(xTblName, xSubTreeQt): xValue}                        
-                                xEvtUpdate.update( xTblUpdate )
-                            xTrTemplate['id']    = xSubTreeQt
-                            xTrTemplate['class'] = xTrSave.get('class')
-
-                        if xTrSave.get('class') == 'eezzTreeLeaf':
-                            if xTable and xInx == xTable.get_selected_index():
-                                xTrTemplate['class'] = ' '.join(['eezzTreeLeaf','eezzSelected']) 
-                            
-                        if xTrSave.mJsonObj and xTrSave.mJsonObj.get('callback'):
-                            xEvtUpdate.update( xTblUpdate )
-                            xEvent['callback'] = xTrSave.mJsonObj.get('callback')
-                            xEvent['update']   = xEvtUpdate
-                        else:
-                            xEvtUpdate.update( xTblUpdate )
-                            xEvent['callback'] = {'{}.do_select'.format(xTblName) : {'index': str(xRows[0])}}
-                            xEvent['update']   = xEvtUpdate                                    
-            
-                        if xTrSave.mTagName == 'option':
-                            if xTableSeg.mJsonObj.get('update'):
-                                xEvtUpdate = xTableSeg.mJsonObj.get('update')
-                            xEvtUpdate.update( xTblUpdate )
-                            xEvent['update'] = xEvtUpdate
-                            xTrTemplate['data-eezz-event'] = urllib.parse.quote( json.dumps( xEvent) )
-                            xTrTemplate.mTemplate = xTrSave.mTemplate
-
-                            if xTable:
-                                if xInx == xTable.get_selected_index():
-                                    xTrTemplate['selected'] = 'selected'
-                                elif xTrTemplate.get('selected'):
-                                    del xTrTemplate['selected']                                    
-                            self.generateTableRow(xTableSeg, xTrTemplate, xColumnNames, None)
-                            xTableSeg.mInnerHtml.write( xTrTemplate.generateHtml() )
-                        else:
-                            xTrTemplate['data-eezz-event'] = urllib.parse.quote( json.dumps( xEvent) )
-                            self.generateTableRow(xTableSeg, xTrTemplate, xColumnNames, (xTblName, xTreeId, None))
-                            xTableSeg.mInnerHtml.write( xTrTemplate.generateHtml() )
-
-        if aParent != None:
-            aParent.mInnerHtml.write( aHtmlTag.generateHtml() )
-
+            self.generateHtml(aHtmlTag, xTd, xValueList, xDictionary) 
     
     # --------------------------------------------------------
     # --------------------------------------------------------
@@ -1292,6 +1363,7 @@ class TEezzAgent(HTMLParser):
         #aElement.mInnerHtml = io.StringIO()
                     
         for xChildElem in aElement.mChildren:
+            xChildElem.mInnerHtml = io.StringIO()
             self.generateHtml(aElement, xChildElem, aArgsList, aDictionary)
 
         if aElement.mTagName == 'cdata':
@@ -1334,7 +1406,9 @@ class TEezzAgent(HTMLParser):
                 except KeyError as xEx:
                     pass
         
-            aParent.mInnerHtml.write(aElement.generateHtml())            
+            aParent.mInnerHtml.write( aElement.generateHtml() )
+            
+        
         
 # --------------------------------------------------------
 # Main for test
