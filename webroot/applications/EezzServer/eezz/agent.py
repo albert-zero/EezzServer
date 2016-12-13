@@ -32,7 +32,7 @@ import gettext
 from   collections   import deque
 import json
 import threading
-
+import sqlite3
 from   eezz.table    import TTable, TCell
 from   eezz.service  import TBlackBoard
 
@@ -136,6 +136,7 @@ class TEezzAgent(HTMLParser):
         self.mBlackboard  = TBlackBoard()
         self.mAsyncThr    = None
         self.mEvent       = threading.Event()
+        self.mRequestId   = uuid.uuid1()
         
         self.mEvent.clear()
         if doc_root:
@@ -160,7 +161,7 @@ class TEezzAgent(HTMLParser):
         self.mTagStack.append( self.mRoot ) 
         self.mState      = None
         self.startServices()
-        
+                
         super().__init__()
 
     # --------------------------------------------------------
@@ -1277,13 +1278,6 @@ class TEezzAgent(HTMLParser):
                 
                 if aTilesLayout:
                     xTdSave     = xTd
-
-                    if isinstance(xTblRow.mValue[0], TCell):
-                        xCell  = xTblRow.mValue[0]
-                        xEntry = [x[2] for x in xTemplates if x[0] == 'type' and x[1] == xCell.mType]
-                        if xEntry:
-                            xTdSave = xEntry[0]                    
-
                     xTdTemplate = THtmlTag(xTdSave.mTagName) 
                     xTdTemplate.update(xTdSave)
                     xTdTemplate.mChildren = xTdSave.mChildren
@@ -1291,7 +1285,8 @@ class TEezzAgent(HTMLParser):
                     
                     if aColCmd:
                         xTdTemplate['data-eezz-event'] = urllib.parse.quote( json.dumps(aColCmd) )
-                        
+                    
+                    # Set Name-Value pairs for replacement in HTML 
                     for i in xColumnInx:
                         xTdTemplate.mDictionary[aColumnNames[i]] = str( xTblRow.mValue[i] )
                         
@@ -1388,9 +1383,6 @@ class TEezzAgent(HTMLParser):
                         aElement[xKey] = xValue.format(**aDictionary)
                     except KeyError:
                         pass
-
-            if aElement.mTagName == 'area':
-                pass
                     
             if aElement.get('class') == 'eezzTreeNode' and aElement.mJsonObj:
                 # and aElement.mTagName == 'tr':
