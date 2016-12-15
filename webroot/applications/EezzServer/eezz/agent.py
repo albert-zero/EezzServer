@@ -35,6 +35,7 @@ import threading
 import sqlite3
 from   eezz.table    import TTable, TCell
 from   eezz.service  import TBlackBoard
+from   eezz.traces   import TTracer
 
 
 # --------------------------------------------------------
@@ -137,11 +138,13 @@ class TEezzAgent(HTMLParser):
         self.mAsyncThr    = None
         self.mEvent       = threading.Event()
         self.mRequestId   = uuid.uuid1()
-        
+                
         self.mEvent.clear()
         if doc_root:
             self.mBlackboard.mDocRoot = doc_root
-            
+        
+        self.mTracer      = TTracer()
+    
         #if not TEezzAgent.mGlobals:
         #    TEezzAgent.mGlobals['__buildins__'] = dict()
         
@@ -270,9 +273,11 @@ class TEezzAgent(HTMLParser):
                 pass
                 
         except AttributeError as xEx:
+            self.mTracer.writeException(1, {'return':{'code':409, 'value': xCallPath}} )
             xCell = TCell(0, 409, [xCallPath])
             self.mTraceStack.append(list(), xCell)
         except Exception as xEx:
+            self.mTracer.writeException(1, {'return':{'code':610, 'value': xCallPath}} )
             xCell = TCell(0, 610, [xCallPath, str(xEx)])
             self.mTraceStack.append(list(), xCell)
     

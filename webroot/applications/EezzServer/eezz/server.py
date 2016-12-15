@@ -33,7 +33,8 @@ from   eezz.websocket import TWebSocket
 from   eezz.agent     import TEezzAgent
 from   eezz.blueserv  import TBluetooth
 import encodings.idna
-from eezz.service import TBlackBoard
+from   eezz.service   import TBlackBoard
+from   eezz.traces    import TTracer
 
 # Class THttpHandler
 #    HTTP Handler for incoming requests 
@@ -47,11 +48,13 @@ class TWebServer(http.server.HTTPServer):
         self.mWebSocket.start()
         self.mRunning    = True
         self.mBluetooth  = TBluetooth()
+        self.mTracer     = TTracer()
         
         # start the user services
         # aAgent           = TEezzAgent()
         # aAgent.startServices()
         super().__init__(aServerAddress, aHttpHandler)
+        self.mTracer.write(3, 'TWebServer', aMessage = 'listening to:{}:{}'.format(self.mServerAddr, self.mWebAddr))
         
     # ---------------------------------    
     def serve_forever(self):
@@ -64,6 +67,7 @@ class TWebServer(http.server.HTTPServer):
    
     # ---------------------------------    
     def shutdown(self):
+        self.mTracer.write(1, 'shutdown')
         self.mWebSocket.shutdown()
         self.mRunning = False
 
@@ -253,8 +257,9 @@ if __name__ == "__main__":
     (aOptions, aArgs) = aOptParser.parse_args() 
     xPath = os.path.join(aOptions.aWebRoot, 'public')
     
-    aBlackBoard          = TBlackBoard()
-    aBlackBoard.mDocRoot = xPath
+    aBlackBoard           = TBlackBoard()
+    aBlackBoard.mDocRoot  = xPath
+    aBlackBoard.mRootPath = xPath
     
     if os.path.isdir(xPath):
         os.chdir(xPath)

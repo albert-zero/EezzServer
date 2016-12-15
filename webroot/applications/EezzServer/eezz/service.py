@@ -38,6 +38,7 @@ class TBlackBoard:
     # --------------------------------------------------------
     # --------------------------------------------------------
     def __init__(self):
+        self.mRootPath    = '/'
         self.mDocRoot     = '/' 
         self.mBlackBoard  = dict()
     

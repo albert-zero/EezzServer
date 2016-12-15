@@ -7,12 +7,13 @@
     
 """
 from   eezz.service  import TBlackBoard
-from   eezz.table    import TDbTable
+from   eezz.table    import TTable, TDbTable
 import sqlite3
 import os, sys
 import uuid
 import traceback
 import time
+import datetime
 
 # ------------------------------------------------------------------------------------
 # Implement a trace interface for eezz components
@@ -32,17 +33,16 @@ class TTracer:
     # Create database and insert the start event into the trace
     # ------------------------------------------------------------------------------------
     def __init__(self):
-        self.mSessionTable = None
         self.mBlackboard = TBlackBoard()
-        self.mLocation   = os.path.join(xBlackboard.mRootPath, 'database', 'traces.db')
+        self.mLocation   = os.path.join(self.mBlackboard.mRootPath, 'database', 'traces.db')
         self.mCookie     = uuid.uuid1()
-        self.mLevel      = 1
+        self.mLevel      = 3
         self.mCount      = 100000
         self.mCid        = 0
         xExists          = os.path.isfile(self.mLocation)
         
         if not xExists:
-            os.makedirs(os.path.join(xBlackboard.mRootPath, 'database'), exist_ok=True)
+            os.makedirs(os.path.join(self.mBlackboard.mRootPath, 'database'), exist_ok=True)
             
         xTraceDB = sqlite3.connect(self.mLocation)
         xCursor  = xTraceDB.cursor()
@@ -121,7 +121,7 @@ class TTracer:
         self.mCount -= 1
 
         xType, xValue, xTraceback = sys.exc_info()
-        xList        = traceback.extract_tb( xTraceback, 10 )
+        xList        = traceback.extract_tb( xTraceback, linit=10 )
         xLine        = xList[0]
         xAppErr      = aJsnReturn['return']['code']
         xAppMsg      = aJsnReturn['return']['value']
@@ -143,20 +143,27 @@ class TTracer:
     # ------------------------------------------------------------------------------------
     # Method to be used for traces
     # ------------------------------------------------------------------------------------
-    def write(self, aLevel, aReason, aJsnReturn):
+    def write(self, aLevel, aReason, aJsnReturn = None, aMessage = ''):
         if self.mLevel < aLevel or self.mCount <= 0:
             return
         
         self.mCount -= 1
-        xList        = traceback.extract_stack(10)        
-        xLine        = xList[0]
-        xFunction    = xLine[1]
-        xLineNo      = xLine[2]
-        xFileName    = '/'.join( xLine[0].split(os.sep)[-3:] )
-        xAppErr      = aJsnReturn['return']['code']
-        xAppMsg      = aJsnReturn['return']['value']
-        xCombinedMsg = xAppMsg
+        xList        = traceback.extract_stack(limit=10) 
+        xIndex       = len(xList) - 2
+               
+        xEntry       = xList[xIndex]
+        xLineNo      = xEntry[1]
+        xFunction    = xEntry[2]
+        xFileName    = '/'.join( xEntry[0].split(os.sep)[-3:] )
+        xAppErr      = 0
+        xAppMsg      = ''
 
+        if aJsnReturn and aJsnReturn.get('return'):
+            xAppErr  = aJsnReturn['return']['code']
+            xAppMsg  = aJsnReturn['return']['value']
+        
+        xCombinedMsg = ':'.join( [xAppMsg, aMessage] )
+            
         xTraceDB     = sqlite3.connect(self.mLocation)
         xCursor      = xTraceDB.cursor()
         xCursor.execute("""
@@ -165,14 +172,21 @@ class TTracer:
             (time.time(), aLevel, aReason, xFileName, xFunction, xLineNo, xAppErr, xCombinedMsg))
         xTraceDB.commit()
         xTraceDB.close()
-        
-
 
     # ------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------
-    def get_selected_sessions(self, index=-1, visible_items=None, visible_block=None):
+    def get_selected_sessions(self, index=-1, visible_items=None, visible_block=None, convert_time=False):
         self.mSessionTable.get_selected_obj(index, visible_items, visible_block)
-        return self.mSessionTable
+        xTable = self.mSessionTable
+
+        if convert_time:
+            xCols   = xTable.get_columns()
+            xOutput = TTable(aColNames = xCols[0][1:])
+            for xRow in xTable:
+                xOutput.append( [ str( datetime.datetime.fromtimestamp(xRow[1]) ), 
+                                  str( datetime.datetime.fromtimestamp(xRow[2]) ) ] )
+            return xOutput
+        return xTable
     
     # ------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------
@@ -181,6 +195,10 @@ class TTracer:
         xInx, xStart, xEnd = xSessions.get_selected_row(index)
         return self.mTracesTable.get_selected_obj(index, visible_items, visible_block, (xStart, xEnd))
 
+    # ------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------
+    def get_dictionary(self):
+        return dict()
 
 # ------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------
@@ -202,7 +220,7 @@ if __name__ == '__main__':
     for i in range(5):
         globalfnct()
 
-    xSessions = xTracer.get_selected_sessions()
+    xSessions = xTracer.get_selected_sessions(convert_time=True)
     xSessions.printTable()
     
     xTraces   = xTracer.get_selected_traces(1)
