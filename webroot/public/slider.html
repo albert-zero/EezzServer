@@ -2,16 +2,40 @@
 <html>
 <head>
     <link href="stylesbasic.css" rel="stylesheet" type="text/css" />
-    <script data-eezz-action = "{'eezzAgent.dictionary':'eezzAgent.get_script'}">
-        {websocket}
+    <script data-eezz-action = "{'eezzAgent.assign':'eezzAgent.get_websocket'}">
+        function getRegion() {
+        	var xElem  = document.getElementById('idTest');
+        	var xRect = xElem.getBoundingClientRect();
+        	
+        	// xRect = xRects[0];
+        	// xElem.innerHTML = ' ' + xRect.top + '<br/> ' + xRect.left + '<br/> ' + xRect.width + '<br/> ' + xRect.height; 
+        	
+        	yElem  = document.getElementById('idBall');
+        	yElem.setAttribute('transform', 'translate(200,50)'); 
+        	xRect = yElem.getBoundingClientRect();
+            xElem.innerHTML = ' ' + xRect.top + '<br/> ' + xRect.left + '<br/> ' + xRect.width + '<br/> ' + xRect.height; 
+        }
     </script>
-        
+    
+    <style>
+        div {
+            border: 1px solid black;
+        }
+    
+    </style>        
 </head>
 
 <body name = "BodySection">
+    
+<svg>
+    <g id='idBall' transform="translate(10,100)">
+      <circle cx="50" cy="50" r="40" stroke="green" stroke-width="4" fill="yellow"/>
+    </g>
+</svg>
 
     <div name="aLight" data-eezz-action="{'eezzAgent.assign': {'Light/module.led/TLightControl':{}}}"></div>
-
+    <button onclick="getRegion()">region</button>
+    
     <table>
         <tr><td>
             <input name="aBlue" type="range" min="0" max="50" value="0" step="5"
@@ -20,6 +44,13 @@
             <input name="aRed" type="range" min="0" max="50" value="0" step="5"
                 data-eezz-event = "{'callback': {'aLight.set_red':{'intensity':'this.value'}}}"/></td></tr>
     </table>
+
+    <div style="height:200px; width:100px"></div>    
+    <div style="position:relative; width:100px; height:100px">
+        <div id="idTest" style="position: absolute; top:50px; left:20px; width:40px; height:100px"></div>
+    
+    
+    </div>
 
 </body>
 </html>

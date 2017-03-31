@@ -67,7 +67,7 @@ class TWebServer(http.server.HTTPServer):
    
     # ---------------------------------    
     def shutdown(self):
-        self.mTracer.write(1, 'shutdown')
+        self.mTracer.write(1, 'TWebServer')
         self.mWebSocket.shutdown()
         self.mRunning = False
 
@@ -122,33 +122,33 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
         
         if xRelPath[0] == os.sep:
             xRelPath = xRelPath[1:]
-        else:
-            if self.mClient[0] in ('localhost', '127.0.0.1'):
-                try:
-                    if xResult.path == '/service/eezzyfree':
-                        xAgent    = TEezzAgent(self.server.mServerAddr, self.server.mWebAddr)
-                        xResponse = xAgent.service('bluetooth', 'GETUSR')
-                        
-                        xJsonStr  = json.dumps(xResponse)
-                        self.wfile.write(xJsonStr.encode('utf8'))
-                        return
+        
+        if self.mClient[0] in ('localhost', '127.0.0.1'):
+            try:
+                if xResult.path == '/service/eezzyfree':
+                    xAgent    = TEezzAgent(self.server.mServerAddr, self.server.mWebAddr)
+                    xResponse = xAgent.service('bluetooth', 'GETUSR')
                     
-                    if xResult.path == '/service/eezzylock':
-                        xAgent    = TEezzAgent(self.server.mServerAddr, self.server.mWebAddr)
-                        xResponse = xAgent.service('bluetooth', 'LOCKWS')
+                    xJsonStr  = json.dumps(xResponse)
+                    self.wfile.write(xJsonStr.encode('utf8'))
+                    return
+                
+                if xResult.path == '/service/eezzylock':
+                    xAgent    = TEezzAgent(self.server.mServerAddr, self.server.mWebAddr)
+                    xResponse = xAgent.service('bluetooth', 'LOCKWS')
 
-                        xJsonStr  = json.dumps(xResponse)
-                        self.wfile.write(xJsonStr.encode('utf8'))
-                        return
-                    
-                    if xResult.path == '/system/exit':
-                        self.send_response(200)
-                        self.end_headers()
-                        self.wfile.write('good by'.encode('utf8'))
-                        self.mServer.shutdown()
-                        return
-                except ConnectionResetError:
-                    pass
+                    xJsonStr  = json.dumps(xResponse)
+                    self.wfile.write(xJsonStr.encode('utf8'))
+                    return
+                
+                if xResult.path == '/system/exit':
+                    self.send_response(200)
+                    self.end_headers()
+                    self.wfile.write('good by'.encode('utf8'))
+                    self.mServer.shutdown()
+                    return
+            except ConnectionResetError:
+                pass
         
         if xRelPath:
             xAbsPath = os.path.join( self.mBlackboad.mDocRoot, xRelPath )
@@ -222,7 +222,8 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
                     self.end_headers()
         
         except ValueError as xEx:
-            raise           
+            self.send_response(500)
+            self.end_headers()
         except Exception as xEx:
             self.send_response(403)
             self.end_headers()
@@ -252,7 +253,7 @@ if __name__ == "__main__":
     aOptParser.add_option("-d", "--host",      dest="aHttpHost",   default="localhost", help="HTTP Hostname")
     aOptParser.add_option("-p", "--port",      dest="aHttpPort",   default="8000",      help="HTTP Port")
     aOptParser.add_option("-w", "--webroot",   dest="aWebRoot",    default="webroot",   help="Web-Root")
-    aOptParser.add_option("-x", "--websocket", dest="aWebSocket",  default="8100",      help="Web-Socket Port")
+    aOptParser.add_option("-x, "--websocket", dest="aWebSocket",  default="8100",      help="Web-Socket Port")
     
     (aOptions, aArgs) = aOptParser.parse_args() 
     xPath = os.path.join(aOptions.aWebRoot, 'public')

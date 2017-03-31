@@ -3,7 +3,7 @@ Created on 15.02.2016
 
 '''
 
-from   jaraco.video  import capture
+# from   jaraco.video  import capture
 from   eezz.service  import TBlackBoard
 from   eezz.table    import TTable
 import threading
