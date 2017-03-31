@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <!--
     <link href="stylesbasic.css" rel="stylesheet" type="text/css" />
     <script data-eezz-action = "{'eezzAgent.assign':'eezzAgent.get_websocket'}">
         function getRegion() {
@@ -22,7 +23,54 @@
             border: 1px solid black;
         }
     
-    </style>        
+    </style>
+    -->        
+
+    <link href="xstylesbasic.css" rel="stylesheet" type="text/css" />
+    <script data-eezz-action = "{'eezzAgent.dictionary':'eezzAgent.get_script'}">
+    function doSetLightTest(aElem, aPin) {
+    	xPackage = {'pin': aElem.value, 'value': aPin};
+    	console.log(JSON.stringify(xPackage));
+    }
+    
+    function doSetLight(aSlider, aPin) {
+    	xPin = aPin;
+    	xVal = aSlider.value;
+    	
+    	try {
+    	    xmlHttp = new XMLHttpRequest();
+    	} catch(e) {
+    	    // Fehlerbehandlung, wenn die Schnittstelle vom Browser nicht unterstützt wird.
+    	}
+    	
+    	if (xmlHttp) {
+    	    xmlHttp.open('POST', 'http://192.168.178.88/gpio/0', true);
+    	    
+    	    xmlHttp.onreadystatechange = function () {
+    	        if (xmlHttp.readyState == 4) {
+    	            xPackage = xmlHttp.responseText;
+    	        }
+    	    };
+    	    xPackage = {'pin': xPin, 'value': xVal};
+    	    xmlHttp.send( JSON.stringify(xPackage) + '\n' );
+    	}
+    }
+    </script>
+    
+    <style>
+    .eezzRow {
+        margin : 0px 0px 0px 0px;
+        padding: 0px 0px 0px 0px;
+        display: table-row;    
+    }
+    
+    .eezzCell {
+        margin : 5px 0px 0px 5px;
+        padding: 0px 0px 0px 0px;
+        display: table-cell;
+    }
+    </style>
+    
 </head>
 
 <body name = "BodySection">
@@ -33,6 +81,8 @@
     </g>
 </svg>
 
+<!--
+<<<<<<< HEAD
     <div name="aLight" data-eezz-action="{'eezzAgent.assign': {'Light/module.led/TLightControl':{}}}"></div>
     <button onclick="getRegion()">region</button>
     
@@ -44,6 +94,23 @@
             <input name="aRed" type="range" min="0" max="50" value="0" step="5"
                 data-eezz-event = "{'callback': {'aLight.set_red':{'intensity':'this.value'}}}"/></td></tr>
     </table>
+=======
+-->
+    <div style="display: table;">
+        <div class="eezzRow">
+            <label for  = "eezzRangeBlue" class="eezzCell">blue</label>
+            <input id   = "eezzRangeBlue" class="eezzCell" 
+                   onchange = "doSetLight(this, 3)"
+                   type = "range" min="0" max="1023" step="5"/>
+        </div>
+
+        <div class="eezzRow">
+            <label for  = "eezzRangeRed" class="eezzCell">yellow</label>
+            <input id   = "eezzRangeRed" class="eezzCell" 
+                   onchange = "doSetLight(this, 4)"
+                   type = "range" min="0" max="1023" step="5"/>
+        </div>   
+    </div> 
 
     <div style="height:200px; width:100px"></div>    
     <div style="position:relative; width:100px; height:100px">
