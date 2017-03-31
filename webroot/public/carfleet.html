@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+    
+<title>Insert title here</title>
+<script data-eezz-action = "{'eezzAgent.assign': {'eezzAgent.get_websocket':{}} }"></script>
+<script>
+   function doDistr() {
+      var xElemList = document.getElementsByName('distribute');
+      var i;
+      for (i = 0; i < xElemList.length; i++) {
+    	  // xElemList[i].style.position   = "fixed";
+    	  // xElemList[i].style.top        = i * 10 + 'px';
+    	  // xElemList[i].style.left       = i * 20 + 'px';
+    	  xphi = (i % 5) * (Math.PI / 4) + Math.floor(i / 5) * (Math.PI);
+    	  xval = Math.sin( xphi );
+    	  var xtrans = 200.0 * (1.0 - xval);
+    	  xElemList[i].style.transition = "width 2s, height 2s, transform 2s";
+    	  xElemList[i].style.transform = "translate(" + i * 0 + "px, " + xtrans + "px)";
+      }
+   }
+</script>
+
+</head>
+<body>
+<h1>press</h1>
+<button onclick="doDistr()">distribute</button>
+    <div name="aExample" data-eezz-action="{'eezzAgent.assign':{'CarFleet/module.carfleet/TChart':{}}}"></div>
+    <table style="width:100%; height:100%" name="aDirList" class="easyView"
+                    data-eezz-action = "{'eezzAgent.assign'   :{'aExample.get_selected_obj':{'index':'-1', 'visible_items':'40', 'visible_block':'10'}},
+                                         'eezzAgent.dictionary':'aDirList.get_dictionary',
+                                         'update': {'aFileList.innerHTML':'*', 'aDirList.innerHTML':'*', 'aEezzFile.value':'aDirList.data-cwd'} }"
+                    data-cwd         = "{selected_entry}"
+                    data-nav-prev    = "{table_prev}" 
+                    data-nav-pos     = "{table_pos}" 
+                    data-nav-next    = "{table_next}" 
+                    data-nav-last    = "{table_last}" 
+                    data-nav-top     = "{table_top}"
+                    data-nav-current = "{table_current}">
+                    <thead>
+                        <tr data-eezz-template="{'table-rows':[':']}"> 
+                            <th data-eezz-template="{'table-columns':['1:']}">{}</th></tr></thead> 
+                    <tbody style="height:150pt">
+                        <tr data-eezz-template="{'table-rows':{'tiles':5}}"> 
+                            <td name="distribute" data-eezz-template="{'table-columns':['1:']}" style="position:relative;">
+                                <div style='width:100px; height:120px; background-color:gray'>
+                                    <span style= "position:absolute; top:10px; left:20px">{cdate}</span> 
+                                    <span style= "position:absolute; top:40px; left:20px">{csymbol}</span>
+                                    <span style= "width:100px; position:absolute; top:60px; left:2px; word-wrap: break-word;">{cdescr}</span>
+                                    </div></td>
+                            <!-- 
+                            <td data-eezz-template="{'table-columns':[':']}">{}</td></tr></tbody>
+                            -->
+                    <tfoot>
+                        <tr data-eezz-template ="{'display':{'table_nav_type':'block'}}">
+                            <td style="text-align:center">
+                                <img src ="navbar.jpg" style="height:20px; width:160px" usemap="#aDirListNavMap"/>
+                                    <map name="aDirListNavMap">
+                                        <area shape="rect" coords="  0, 0,  40, 20" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-top'}}, 'update'  : {'aDirList.innerHTML':'*'} }"/>                              
+                                        <area shape="rect" coords=" 40, 0,  80, 20" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-prev'}},'update'  : {'aDirList.innerHTML':'*'} }"/>
+                                        <area shape="rect" coords=" 80, 0, 120, 20" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-next'}},'update'  : {'aDirList.innerHTML':'*'} }"/>
+                                        <area shape="rect" coords="120, 0, 160, 20" data-eezz-event="{'callback': {'aDirList.do_navigate': {'where':'aDirList.data-nav-last'}},'update'  : {'aDirList.innerHTML':'*'} }"/></map></td></tr></tfoot></table>
+
+</body>
+</html>

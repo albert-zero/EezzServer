@@ -33,9 +33,9 @@ from   collections   import deque
 import json
 import threading
 import sqlite3
+
 from   eezz.table    import TTable, TCell
 from   eezz.service  import TBlackBoard
-from   eezz.traces   import TTracer
 
 
 # --------------------------------------------------------
@@ -143,7 +143,7 @@ class TEezzAgent(HTMLParser):
         if doc_root:
             self.mBlackboard.mDocRoot = doc_root
         
-        self.mTracer      = TTracer()
+        #self.mTracer      = TTracer()
     
         #if not TEezzAgent.mGlobals:
         #    TEezzAgent.mGlobals['__buildins__'] = dict()
@@ -734,7 +734,7 @@ class TEezzAgent(HTMLParser):
                         
                     elif len(xPathClass.split('.')) == 2:
                         xClassName, xMethodName = xPathClass.split('.')
-                        if self.mGlobals.get(xClassName):
+                        if self.mGlobals.get(xClassName) != None:
                             aService = self.mGlobals.get(xClassName)
                             xMethod  = getattr(self.mGlobals.get(xClassName), xMethodName)
 
@@ -888,7 +888,7 @@ class TEezzAgent(HTMLParser):
         aParent         = self.mTagStack[-1]
         aDictionary     = self.findDictionary()
 
-        if aParent.mTagName == ['style', 'script']:
+        if aParent.mTagName in ['style', 'script']:
             aParent.mInnerHtml.write(aData)
             return
                 
