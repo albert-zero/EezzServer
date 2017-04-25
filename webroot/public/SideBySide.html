@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="ISO-8859-1">
+        <title>SideBySide</title>
+    </head>
+<body>
+
+    <p>
+    Specify the basic layout.</p>
+    <ul>
+        <li> First frame uses <code>&lt;div style=&quot;display:flex&quot;&gt;</code></li>
+        <li> Left frame is an example with margin and static width/height </li>
+        <li> Right frame uses style <code>overflow:auto</code> to generate a scollbar </li>
+        <li> Right frame embeds a frame to scroll </li>
+    </ul>
+    
+    <p>For precise layout use margin and padding. The border lines are optional with style=&quot;border: 1px solid black&quot;</p>
+    
+    <div style="height: 200px; width: 750px; border: 1px solid red; display:flex">
+        <div id="leftMenu" style="margin: 10px 10px 10px 10px; height: 100px; width: 100px; border: 1px solid black">
+                left
+        </div>
+
+        <div id="rightFrame" style="margin: 10px 10px 10px 10px; height: 180px; width: 700px; overflow:auto; border: 1px solid black">
+            <div id="innerFrame" style="margin: 10px 10px 10px 10px; height: 500px; width: 500px; border: 1px solid black">
+                    right
+            </div> 
+        </div>
+        
+    </div>
+
+
+</body>
+</html>

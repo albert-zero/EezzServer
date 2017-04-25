@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="ISO-8859-1">
+        <title>Moving 1</title>
+    </head>
+    <script>
+        function scrollto(whereto) {
+        	document.getElementById(whereto).scrollIntoView();
+        	
+        }
+    </script>
+<body>
+<p>Smooth scrolling for menue items. Distribute elements in a flex container</p>
+
+    <div style="height: 400px; width: 750px; border: 1px solid red; display:flex">
+        <div id="leftMenu" style="display:flex; flex-direction: column; justify-content: space-around; margin: 10px 10px 10px 10px; height: 350px; width: 100px; border: 1px solid black">
+            <button onclick="scrollto('header')">head</button>
+            <button onclick="scrollto('chapter1')">first</button>
+            <button onclick="scrollto('chapter2')">second</button>
+            <button onclick="scrollto('chapter4')">third</button>
+        </div>
+
+        <div id="rightFrame" 
+                style="margin: 10px 10px 10px 10px; 
+                        height: 180px; width: 700px; 
+                        overflow:auto; border: 1px solid black;
+                        scroll-behavior: smooth">
+            <div id="innerFrame" style="margin: 10px 10px 10px 10px; width: 500px; border: 1px solid black">
+                 <h1 id="header">Title</h1>
+                    <br/>1
+                    <br/>2
+                    <br/>3
+                    <br/>4
+                    <br/>5
+                    <br/>6
+                    <br/>7
+                    <br/>8
+                    <br/>9
+                    <br/>10
+                    <br/>11
+                    <br/>12
+                    <br/>13
+                    <br/>14
+                    <br/>15
+                 <h1 id="chapter1">Chapter 1</h1>
+                    <br/>1
+                    <br/>2
+                    <br/>3
+                    <br/>4
+                    <br/>5
+                    <br/>6
+                    <br/>7
+                    <br/>8
+                    <br/>9
+                    <br/>10
+                    <br/>11
+                    <br/>12
+                    <br/>13
+                    <br/>14
+                    <br/>15
+                 <h1 id="chapter2">Chapter 2</h1>
+                    <br/>1
+                    <br/>2
+                    <br/>3
+                    <br/>4
+                    <br/>5
+                    <br/>6
+                    <br/>7
+                    <br/>8
+                    <br/>9
+                    <br/>10
+                    <br/>11
+                    <br/>12
+                    <br/>13
+                    <br/>14
+                    <br/>15
+                 <h1 id="chapter4">Chapter 3</h1>
+                    <br/>1
+                    <br/>2
+                    <br/>3
+                    <br/>4
+                    <br/>5
+                    <br/>6
+                    <br/>7
+                    <br/>8
+                    <br/>9
+                    <br/>10
+                    <br/>11
+                    <br/>12
+                    <br/>13
+                    <br/>14
+                    <br/>15
+
+
+            </div> 
+        </div>
+        
+    </div>
+
+</body>
+</html>

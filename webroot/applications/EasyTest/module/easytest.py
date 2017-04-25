@@ -5,7 +5,7 @@
 import os
 from   eezz.table import TTable
 from   eezz.table import TCell
-from   sys import path
+
 # from test.test_importlib.extension.util import PATH
 
 # ---------------------------------------------------------------
