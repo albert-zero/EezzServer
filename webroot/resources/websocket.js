@@ -142,6 +142,31 @@ function eezzConnect() {
         if (aJson.files) {
             readFiles(aJson);
         }
+        
+        if (aJson.animation) {
+        	for (xKey in aJson.animation) {
+        		xAnchor  = aJson.animation[xKey]['anchor'];
+        	    xJsnRec  = {}	
+        		xElement = document.getElementsByName( xAnchor )[0];
+        			
+        		if (xElement) {
+        			xRect   = xElement.getBoundingClientRect( );
+        			xJsnRec = {
+	    	        	"left"   : xRect.left,
+	    				"right"  : xRect.right,
+	    				"top"    : xRect.top,
+	    				"bottom" : xRect.bottom,
+	    				"x"      : xRect.x,
+	    				"y"      : xRect.y,
+	    				"width"  : xRect.width,
+						"height" : xRect.height        					
+        			};        					
+        		}
+        		aJson.animation[xKey]['rectangle'] = xJsnRec;
+        	}
+        	var xResponse = JSON.stringify(aJson);                                
+            eezzWebSocket.send(aJson);
+        }
     }     
 }
 
