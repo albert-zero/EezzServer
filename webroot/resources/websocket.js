@@ -362,6 +362,25 @@ function easyClick(aEvent, aElement) {
     /* Generate a callback request */
     if (aJson.callback) {    
         aPost = true;
+        if (aElement.tagName == 'TR') {
+        	xElementList = document.getElementsByClassName("eezzSelected");
+        	for (var i = 0; i < xElementList.lenght; i++) {
+        		if (xElementList[i].getParent() === aElement.getParent()) {
+        		    // ( /(?:^|\s)eezzSelected(?!\S)/g , '' )
+        			xClasses = xElementList[i].className.replace("eezzSelected", "");
+        			xClasses.trim();
+        			xElementList[i].className = xClasses;
+        		}
+        	}
+        	if (aElement.className) {
+        		aElement.className += " eezzSelected";
+        	}
+        	else {
+        		aElement.className = "eezzSelected";
+        	}
+        	        	
+        }
+        
 	    for (xMethod in aJson.callback) {
 	        for (xArg in aJson.callback[xMethod]) {
 	            aDest = aJson.callback[xMethod][xArg];
