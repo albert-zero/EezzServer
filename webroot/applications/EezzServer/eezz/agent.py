@@ -273,11 +273,11 @@ class TEezzAgent(HTMLParser):
                 pass
                 
         except AttributeError as xEx:
-            self.mTracer.writeException(1, {'return':{'code':409, 'value': xCallPath}} )
+            #self.mTracer.writeException(1, {'return':{'code':409, 'value': xCallPath}} )
             xCell = TCell(0, 409, [xCallPath])
             self.mTraceStack.append(list(), xCell)
         except Exception as xEx:
-            self.mTracer.writeException(1, {'return':{'code':610, 'value': xCallPath}} )
+            #self.mTracer.writeException(1, {'return':{'code':610, 'value': xCallPath}} )
             xCell = TCell(0, 610, [xCallPath, str(xEx)])
             self.mTraceStack.append(list(), xCell)
     
@@ -622,7 +622,7 @@ class TEezzAgent(HTMLParser):
                 
         for xKey, xValue in xDictAttr.items():
             #-- print('process start {} - {} {}'.format(aTagName, xKey, xValue))
-            if xKey in ['data-eezz-action', 'data-eezz-event']:
+            if xKey in ['data-eezz-action', 'data-eezz-event', 'data-eezz-push']:
                 try:
                     xJsonObj = json.loads(xValue.replace('\'', '\"'))
                 except ValueError as aEx:
@@ -635,10 +635,7 @@ class TEezzAgent(HTMLParser):
                     aHtmlTag.mJsonObj.update( xJsonObj )
                 else:
                     aHtmlTag.mJsonObj = xJsonObj 
-                
-                if aTagName == 'tr':
-                    pass
-                
+                                
                 # insert the query as callback and asign argument                
                 if aSession:
                     for xArgKey in xJsonObj.keys():                    
@@ -1080,7 +1077,7 @@ class TEezzAgent(HTMLParser):
                 xRowList.append(xTr)
         
         xTreeId = None
-        if xTable != None and xTableTag.get('class') in ['eezzTreeNode', 'eezzTreeLeaf']:
+        if xTable != None and xTableTag.get('class') in ['eezzTreeNode', 'eezzTreeLeaf', 'eezzTreeTiles']:
             xTreeId = '{}:{}'.format(xTblName, xTable.mPath)
         
         for xTr in xRowList:
@@ -1146,7 +1143,7 @@ class TEezzAgent(HTMLParser):
                         if xTrTemplate.mJsonObj:
                             xTrsUpdate = xTrTemplate.mJsonObj.get('update', xTrsUpdate)
                         
-                        if xTrSave.get('class') in ['eezzTreeNode', 'eezzTreeLeaf']:
+                        if xTrSave.get('class') in ['eezzTreeNode', 'eezzTreeLeaf', 'eezzTreeTiles']:
                             if isinstance(xRows[1], TTable):
                                 xSubTreeId = '{}:{}'.format(xTblName, xRows[1].mPath)
                             else:
@@ -1191,6 +1188,7 @@ class TEezzAgent(HTMLParser):
                             self.generateTableCols( xTrTemplate, xColumnList )
                             xTableSeg.mInnerHtml.write( xTrTemplate.generateHtml() )
                         elif xTileLayout:
+                            xEvent['update'] = xTrTemplate.mJsonObj['update']
                             xColumnList.extend( self.generateTableRow(xTableSeg, xTrTemplate, xColumnNames, (xTblName, xTreeId, xEvent), True) )
                             
                             if len(xColumnList) == xNrTiles or xInx == len(xTable) - 1:
@@ -1285,6 +1283,7 @@ class TEezzAgent(HTMLParser):
                     xTdSave     = xTd
                     xTdTemplate = THtmlTag(xTdSave.mTagName) 
                     xTdTemplate.update(xTdSave)
+                    xTdTemplate.update(xTblRow)
                     xTdTemplate.mChildren = xTdSave.mChildren
                     xTdTemplate.mJsonObj  = xTdSave.mJsonObj
                     

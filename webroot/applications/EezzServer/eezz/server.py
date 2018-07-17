@@ -253,7 +253,7 @@ if __name__ == "__main__":
     aOptParser.add_option("-d", "--host",      dest="aHttpHost",   default="localhost", help="HTTP Hostname")
     aOptParser.add_option("-p", "--port",      dest="aHttpPort",   default="8000",      help="HTTP Port")
     aOptParser.add_option("-w", "--webroot",   dest="aWebRoot",    default="webroot",   help="Web-Root")
-    aOptParser.add_option("-x, "--websocket", dest="aWebSocket",  default="8100",      help="Web-Socket Port")
+    aOptParser.add_option("-x", "--websocket", dest="aWebSocket",  default="8100",      help="Web-Socket Port")
     
     (aOptions, aArgs) = aOptParser.parse_args() 
     xPath = os.path.join(aOptions.aWebRoot, 'public')
