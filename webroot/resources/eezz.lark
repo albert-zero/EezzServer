@@ -1,0 +1,27 @@
+?start            : list_statements
+
+?list_statements  : [ statement  ("," statement  )* ]
+?statement        : "event"   ":" function_call -> funct_assignment
+                  | "assign"  ":" function_call -> table_assignment
+                  | string    ":" string        -> template_section
+
+
+?list_arguments   : [ assignment  ("," assignment  )* ]
+?assignment       : string "=" value_string
+?value_string     : string
+                  | format_string
+                  | qualified_string
+
+?function_call    : string "(" list_arguments ")"
+
+string            : CNAME                               -> simple_str
+?quoted_string    : ESCAPED_STRING                      -> simple_str
+?qualified_string : [ string ("." string  )* ]
+?format_string    : "{" [ string ("." string  )* ] "}"
+
+%import common.ESCAPED_STRING
+%import common.CNAME
+%import common.SIGNED_NUMBER
+%import common.WS
+%ignore WS
+

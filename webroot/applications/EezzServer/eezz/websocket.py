@@ -23,6 +23,7 @@ Description:
    https://tools.ietf.org/html/rfc6455
  
 """
+from   abc import abstractmethod
 import io
 import struct
 import socket
@@ -32,362 +33,284 @@ import base64
 import select
 import json
 import threading
-from   eezz.agent import TEezzAgent
-  
-# Define exception
-# ----------------------------------------------------------------
+from enum   import Enum
+from typing import Any
+
+
+class TWebSocketAgent:
+    """ User should implement this class to receive data """
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def handle_request(self, request_data: Any) -> str:
+        """ handle request expects a json structure """
+        return ''
+
+    @abstractmethod
+    def handle_download(self, description: str, raw_data: Any) -> str:
+        """ handle download expects a json structure, describing the file and the data """
+        return ''
+
+    def shutdown(self):
+        """ Implement shutdown to release allocated resources """
+        pass
+
+
 class TWebSocketException(Exception):
-    def __init__(self, aValue):
-        self.value = aValue
+    """ Exception class for this module """
+    def __init__(self, a_value):
+        self.m_value = a_value
+
     def __str__(self):
-        return repr(self.value)
+        return repr(self.m_value)
 
-# ----------------------------------------------------------------
-# Define a client web socket handler
-# ----------------------------------------------------------------
-class TWebSocketClient():
-    # Initialize Thread
-    # --------------------------------------------------------
-    def __init__(self, xCltAddr, xWebAddr):
-        self.mSocket  = xCltAddr[0]
-        self.mState   = 0
-        self.mAddress = xWebAddr
-        self.mAgent   = None
-        self.mCnt     = 0
-        self.mBuffer  = None
-        self.mLock    = threading.Lock()
-        self.mProtocol= str()
-        
-    # --------------------------------------------------------             
-    # thread main method
-    # --------------------------------------------------------
-    def doInput(self):
-        if self.mState == -1:
-            raise TWebSocketException('input: connection closed');
-        xFinal, xOpcode, xMaskVector, xPayloadLen = (False,0,0,0)
-        
+
+class TWebSocketClient:
+    """ Implements a WEB socket service thread """
+    def __init__(self, a_client_addr: tuple, a_web_addr: int, a_agent: type[TWebSocketAgent]):
+        self.m_headers  = None
+        self.m_socket   = a_client_addr[0]
+        self.m_address  = a_web_addr
+        self.m_cnt      = 0
+        self.m_buffer   = None
+        self.m_protocol = str()
+        self.m_agent_class  = a_agent
+        self.m_agent_client = None
+        self.upgrade()
+
+    def upgrade(self):
+        """ Upgrade HTTP connection to WEB socket """
+        x_bin_data = self.m_socket.recv(1024)
+        if len(x_bin_data) == 0:
+            raise TWebSocketException('no data received')
+
+        x_utf_data = x_bin_data.decode('utf-8')
+        x_response = self.gen_handshake(x_utf_data)
+        x_nr_bytes = self.m_socket.send(x_response.encode('utf-8'))
+        self.m_agent_client = self.m_agent_class()
+        self.m_buffer = bytearray(65536 * 2)
+
+    def handle_request(self) -> None:
+        """ Receives an request and send a response """
+        x_json_str = self.read_websocket()
+        x_json_obj = json.loads(x_json_str.decode('utf-8'))
+
+        if 'file' in x_json_obj:
+            x_byte_stream = self.read_websocket()
+            x_response    = self.m_agent_client.handle_download(x_json_obj, x_byte_stream)
+        else:
+            x_response    = self.m_agent_client.handle_request(x_json_obj)
+        self.write_frame(x_response.encode('utf-8'))
+
+    def read_websocket(self) -> bytes:
         try:
-            if self.mState == 0:
-                self.mState = 1
-                xBinData   = self.mSocket.recv(1024)
-                
-                print('connect...')
-                if len(xBinData) == 0:
-                    raise TWebSocketException('no data received')
-                
-                xData        = xBinData.decode('utf-8')        
-                xResponse    = self.genHandshake(xData)    
-                xNrBytes     = self.mSocket.send(xResponse.encode('utf-8'))
-                self.mAgent  = TEezzAgent(None, self.mAddress, self)
-                self.mBuffer = bytearray(65536*2)
-                return None
-            
-            if self.mProtocol == 'peezz':
-                xJsonStr     = self.mSocket.recv(1024)
-                xJsonObj     = json.loads(xJsonStr.decode('utf-8'))
-                
-                if 'file' in xJsonObj:
-                    xStream   = self.mSocket.recv(65536*2)
-                    xJsonResp = self.mAgent.handle_download(xJsonObj, xStream)                            
-                else:
-                    aResponse = self.mAgent.handle_websocket(xJsonObj)
-                
-                if aResponse != None:
-                    self.mSocket.sendall(aResponse.encode('utf-8'))
-                return
-            
-            xFinal = False
-            while not xFinal:
-                xFinal, xOpcode, xMaskVector, xPayloadLen = self.readHeader()
-                
-                if xOpcode == 0x8:
+            x_raw_data = bytes()
+            while True:
+                x_final, x_opcode, x_mask_vector, x_payload_len = self.read_frame_header()
+                if x_opcode == 0x8:
                     raise TWebSocketException("closed connection")
-                elif xOpcode == 0x1:
-                    xJsonStr = self.readFrame(xOpcode, xMaskVector, xPayloadLen)
-                    xJsonObj = json.loads(xJsonStr[:xPayloadLen].decode('utf-8'))
-
-                    if 'file' in xJsonObj:
-                        xStream   = self.doInput()
-                        xJsonResp = self.mAgent.handle_download(xJsonObj, xStream)                            
-                        self.writeFrame(json.dumps(xJsonResp).encode('utf-8'))
-                        return
-                    
-                    aResponse = self.mAgent.handle_websocket(xJsonObj)                        
-                    if aResponse != None:
-                        self.writeFrame(aResponse.encode('utf-8'))
-                        
-                elif xOpcode == 0x2:
-                    return self.readFrame(xOpcode, xMaskVector, xPayloadLen) 
-                elif xOpcode == 0x9:
-                    xData = self.readFrame(xOpcode, xMaskVector, xPayloadLen)
-                    self.writeFrame(aData=xData[:xPayloadLen], aOpCode=0xA, aFinal=(1<<7), aMaskVector = None)
-                elif xOpcode == 0xA:
-                    xData = self.readFrame(xOpcode, xMaskVector, xPayloadLen)
-                    self.writeFrame(aData=xData[:xPayloadLen], aOpCode=0x9, aFinal=(1<<7), aMaskVector = None)
+                elif x_opcode == 0x1:
+                    x_raw_data += self.read_frame(x_opcode, x_mask_vector, x_payload_len)
+                elif x_opcode == 0x2:
+                    x_raw_data += self.read_frame(x_opcode, x_mask_vector, x_payload_len)
+                elif x_opcode == 0x9:
+                    x_utf_data = self.read_frame(x_opcode, x_mask_vector, x_payload_len)
+                    self.write_frame(a_data=x_utf_data[:x_payload_len], a_opcode=0xA, a_final=(1 << 7))
+                elif x_opcode == 0xA:
+                    x_utf_data = self.read_frame(x_opcode, x_mask_vector, x_payload_len)
+                    self.write_frame(a_data=x_utf_data[:x_payload_len], a_opcode=0x9, a_final=(1 << 7))
                 else:
-                    raise TWebSocketException("unknown opcode={}".format(xOpcode))         
+                    raise TWebSocketException(f"unknown opcode={x_opcode}")
+
+                if x_final:
+                    return x_raw_data
         except Exception as xEx:
-            if self.mAgent:
+            if self.m_agent_client:
                 print("communication: connection closed: " + str(xEx))
-                self.mAgent.shutdown()
-            self.mState = -1;
+                self.m_agent_client.shutdown()
+                self.m_agent_client = None
             raise
-        return None
-        
-    # --------------------------------------------------------
-    # --------------------------------------------------------
-    def doUpdate(self, aJsonObj):
-        if self.mState == -1:
-            raise TWebSocketException('update: connection closed');
 
-        aResponse = self.mAgent.handle_websocket(aJsonObj, False)
+    def gen_handshake(self, a_data: str):
+        x_key           = 'accept'
+        x_lines         = a_data.splitlines()
+        self.m_headers  = {x_key: x_val for x_key, x_val in [x.split(':', 1) for x in x_lines[1:] if ':' in x]}
+        self.m_protocol = self.m_headers.get('Upgrade')
         
-        if aResponse != None:
-            try:
-                if self.mProtocol == 'peezz':
-                    self.socket.send(aResponse.encode('utf-8'))
-                else:
-                    self.writeFrame(aResponse.encode('utf-8'))                 
-            except:
-                self.mState = -1;
-                raise
-                        
-    # --------------------------------------------------------
-    # Define the handshake
-    # --------------------------------------------------------
-    def genHandshake(self, aData):
-        xKey           = 'accept'
-        xLines         = aData.splitlines()
-        self.mHeaders  = dict([ x.split(':', 1) for x in xLines[1:] if ':' in x])
-        self.mProtocol = self.mHeaders.get('Upgrade') 
-        
-        try:
-            if self.mProtocol != 'peezz':        
-                xKey = self.genKey()
-        except:
-            pass
-        
-        with io.StringIO() as xHandshake:
-            xHandshake.write('HTTP/1.1 101 Switching Protocols\r\n')
-            xHandshake.write('Connection: Upgrade\r\n')
-            xHandshake.write('Upgrade: websocket\r\n')
-            xHandshake.write('Sec-WebSocket-Accept: {}\r\n'.format(xKey))
-            xHandshake.write('\r\n')
-            aResult = xHandshake.getvalue() 
-        
-        return aResult 
+        if self.m_protocol != 'peezz':
+            x_key = self.gen_key()
+
+        with io.StringIO() as x_handshake:
+            x_handshake.write('HTTP/1.1 101 Switching Protocols\r\n')
+            x_handshake.write('Connection: Upgrade\r\n')
+            x_handshake.write('Upgrade: websocket\r\n')
+            x_handshake.write('Sec-WebSocket-Accept: {}\r\n'.format(x_key))
+            x_handshake.write('\r\n')
+            x_result = x_handshake.getvalue()
+        return x_result
     
-    # --------------------------------------------------------
-    # Generate key for Sec-WebSocket-Accept
-    # --------------------------------------------------------
-    def genKey(self):
-        xhash     = hashlib.sha1()
-        x64Key    = self.mHeaders.get('Sec-WebSocket-Key').strip()
-        xKey      = x64Key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
-        xhash.update(bytes(xKey, 'ascii'))
-        return base64.b64encode(xhash.digest()).decode('utf-8')    
+    def gen_key(self):
+        x_hash     = hashlib.sha1()
+        x_64key    = self.m_headers.get('Sec-WebSocket-Key').strip()
+        x_key      = x_64key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+        x_hash.update(bytes(x_key, 'ascii'))
+        return base64.b64encode(x_hash.digest()).decode('utf-8')
 
-    # --------------------------------------------------------
-    # Read a single frame
-    # --------------------------------------------------------
-    def readHeader(self):
-        xBytes      = self.mSocket.recv(2)
+    def read_frame_header(self):
+        x_bytes = self.m_socket.recv(2)
         
-        if len(xBytes) == 0:
+        if len(x_bytes) == 0:
             raise TWebSocketException('no data received')
                 
-        xMaskVector = None
-        xFinal      = ((1<<7) & xBytes[0]) != 0 
-        xOpcode     = xBytes[0] & 0xf
-
-        xMasked     = ((1<<7) & xBytes[1]) != 0
-        xPayloadLen = int( xBytes[1] & 0x7f )        
+        x_mask_vector = None
+        x_final       = ((1 << 7) & x_bytes[0]) != 0
+        x_opcode      = x_bytes[0] & 0xf
+        x_masked      = ((1 << 7) & x_bytes[1]) != 0
+        x_payload_len = int(x_bytes[1] & 0x7f)
 
         # calculate extended length
-        if xPayloadLen == 126:
-            xBytes = self.mSocket.recv(2)
-            xPayloadLen = struct.unpack('>H', xBytes)[0]
-        elif xPayloadLen == 127:
-            xBytes = self.mSocket.recv(8)
-            xPayloadLen = struct.unpack('>Q', xBytes)[0]
+        if x_payload_len == 126:
+            x_bytes = self.m_socket.recv(2)
+            x_payload_len = struct.unpack('>H', x_bytes)[0]
+        elif x_payload_len == 127:
+            x_bytes = self.m_socket.recv(8)
+            x_payload_len = struct.unpack('>Q', x_bytes)[0]
 
         # unpack data
-        if xMasked:
-            xMaskVector = self.mSocket.recv(4) 
-        
-        return (xFinal, xOpcode, xMaskVector, xPayloadLen)
-        
+        if x_masked:
+            x_mask_vector = self.m_socket.recv(4)
+        return x_final, x_opcode, x_mask_vector, x_payload_len
 
-    # --------------------------------------------------------
-    # Read a single frame
-    # --------------------------------------------------------
-    def readFrame(self, xOpcode, xMaskVector, xPayloadLen):
-        if xPayloadLen == 0:
-            return str()
+    def read_frame(self, x_opcode, a_mask_vector, a_payload_len):
+        """ Read one frame """
+        if a_payload_len == 0:
+            return bytearray()
         
-        xRest   = xPayloadLen 
-        xView   = memoryview(self.mBuffer)
+        x_rest   = a_payload_len
+        x_view   = memoryview(self.m_buffer)
         
-        while xRest > 0:
-            xNumBytes = self.mSocket.recv_into(xView, xRest)
-            xRest     = xRest - xNumBytes
-            xView     = xView[xNumBytes:]
+        while x_rest > 0:
+            x_num_bytes = self.m_socket.recv_into(x_view, x_rest)
+            x_rest     = x_rest - x_num_bytes
+            x_view     = x_view[x_num_bytes:]
                     
-        if xMaskVector:
-            xDimension  = divmod((xPayloadLen + 3), 4)
-            xView       = memoryview(self.mBuffer)
+        if a_mask_vector:
+            x_dimension = divmod((a_payload_len + 3), 4)
+            x_view      = memoryview(self.m_buffer)
             
-            xIntSize    = xDimension[0]                
-            xSeqMask    = struct.unpack('>I', bytearray(reversed(xMaskVector)))[0]
-            xViewSli    = xView[: xIntSize * 4]
-            xViewInt    = xViewSli.cast('I')
+            x_int_size  = x_dimension[0]
+            x_seq_mask  = struct.unpack('>I', bytearray(reversed(a_mask_vector)))[0]
+            x_view_sli  = x_view[: x_int_size * 4]
+            x_view_int  = x_view_sli.cast('I')
             
             # Calculate un-mask with int4
-            for i in range(xIntSize):
-                xViewInt[i] ^= xSeqMask
+            for i in range(x_int_size):
+                x_view_int[i] ^= x_seq_mask
 
-            xViewInt.release()
-            xViewSli.release()
+            x_view_int.release()
+            x_view_sli.release()
                                 
-        return self.mBuffer
+        return self.m_buffer[:a_payload_len]
 
-    # --------------------------------------------------------
-    # Write a single frame
-    # --------------------------------------------------------
-    def writeFrame(self, aData, aOpCode=0x1, aFinal=(1<<7), aMaskVector = None):
-        with self.mLock:
-            xPayloadLen  = len(aData)
-            xBytes       = bytearray(10)
-            xPos         = 0
-            xMasked      = 0x0
-            
-            if aMaskVector != None and len(aMaskVector) == 4:
-                xMasked = 1<<7
-                
-            xBytes[xPos] = aFinal | aOpCode 
-            xPos        += 1
-            
-            if xPayloadLen > 126:
-                if xPayloadLen < 0xffff:
-                    xBytes[xPos]  = 0x7E | xMasked
-                    xPos += 1
-                    xBytes[xPos:xPos+2] = struct.pack('>H', xPayloadLen)
-                    xPos += 2
-                else:
-                    xBytes[xPos]  = 0x7F | xMasked
-                    xPos += 1
-                    xBytes[xPos:xPos+8] = struct.pack('>Q', xPayloadLen)
-                    xPos += 8
+    def write_frame(self, a_data: bytes, a_opcode: hex = 0x1, a_final: hex = (1 << 7), a_mask_vector: list = None) -> None:
+        """ Write single frame """
+        x_payload_len = len(a_data)
+        x_bytes       = bytearray(10)
+        x_position    = 0
+        x_masked      = 0x0
+
+        if a_mask_vector and len(a_mask_vector) == 4:
+            x_masked = 1 << 7
+
+        x_bytes[x_position] = a_final | a_opcode
+        x_position         += 1
+
+        if x_payload_len > 126:
+            if x_payload_len < 0xffff:
+                x_bytes[x_position]  = 0x7E | x_masked
+                x_position += 1
+                x_bytes[x_position:x_position+2] = struct.pack('>H', x_payload_len)
+                x_position += 2
             else:
-                xBytes[xPos] = (xPayloadLen) | xMasked
-                xPos += 1
+                x_bytes[x_position]  = 0x7F | x_masked
+                x_position += 1
+                x_bytes[x_position:x_position+8] = struct.pack('>Q', x_payload_len)
+                x_position += 8
+        else:
+            x_bytes[x_position] = x_payload_len | x_masked
+            x_position += 1
 
-            if xMasked:
-                xBytes[xPos:xPos+4] = aMaskVector
-                xPos += 4
-            
-            self.mSocket.send(xBytes[0:xPos])
-            if xPayloadLen == 0:
-                return
-            
-            if xMasked != 0:
-                xMasked = bytearray(xPayloadLen)
-                
-                for i in range(xPayloadLen):
-                    xMasked[i] = ord(aData [i]) ^ aMaskVector[i % 4]
-                self.mSocket.send(xMasked)
-            else:
-                self.mSocket.sendall(aData)
+        if x_masked:
+            x_bytes[x_position:x_position+4] = a_mask_vector
+            x_position += 4
 
-# ------------------------------------------------------------
-# Manage the web socket port
-# ------------------------------------------------------------
-class TWakeup(threading.Thread):
-    mCvExtern = threading.Condition()
+        self.m_socket.send(x_bytes[0:x_position])
+        if x_payload_len == 0:
+            return
 
-    def __init__(self):
-        super().__init__()
-    
-    def run(self): 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as xSocket:
-            xSocket.bind(('127.0.0.1', 63000))
-            xSocket.listen(1)
-            
-            while True:
-                con, adr = xSocket.accept()
-                with TWakeup.mCvExtern:
-                    TWakeup.mCvExtern.notify_all()
-            
-# ------------------------------------------------------------
-# Manage the web socket port
-# ------------------------------------------------------------
+        if x_masked != 0:
+            x_masked = bytearray(x_payload_len)
+
+            for i in range(x_payload_len):
+                x_masked[i] = a_data[i] ^ a_mask_vector[i % 4]
+            self.m_socket.send(x_masked)
+        else:
+            self.m_socket.sendall(a_data)
+
+
 class TWebSocket(threading.Thread):
-    mWebClient = None
-    
-    # Initialize
-    # --------------------------------------------------------
-    def __init__(self, aWebAddress):
-        self.mWebAddr         = aWebAddress
-        self.mClients         = dict()
-        self.mRunning         = False
+    """ Manage connections to the WEB socket interface """
+    def __init__(self, a_web_address, a_agent_class: type[TWebSocketAgent]):
+        self.m_web_socket: socket = None
+        self.m_web_addr    = a_web_address
+        self.m_clients     = dict()
+        self.m_agent_class = a_agent_class
+        self.m_running     = True
         super().__init__()
-
     
-    def isRunning(self):
-        return self.mRunning
-        
-    # --------------------------------------------------------
-    # --------------------------------------------------------
     def shutdown(self):
-        self.mRunning = False
-        self.mWebSocketServer.close()
-    
-    # Wait for incoming connection requests         
-    # --------------------------------------------------------
-    def run(self):   
-        self.mWebSocketServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.mWebSocketServer.bind((self.mWebAddr[0], self.mWebAddr[1]))
-        self.mWebSocketServer.listen(15)
+        """ Shutdown closes all sockets """
+        self.m_running = False
+        for x_key, x_val in self.m_clients.items():
+            x_key.close()
 
-        aReadList  = [self.mWebSocketServer]        
+    def run(self):
+        """ Wait for incoming requests"""
+        self.m_web_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.m_web_socket.bind((self.m_web_addr[0], self.m_web_addr[1]))
+        self.m_web_socket.listen(15)
+
+        x_read_list  = [self.m_web_socket]
         # aWebSocket.settimeout(60)
-        
-        print('websocket {} at {}'.format(self.mWebAddr[0], self.mWebAddr[1]))
-        
-        self.mRunning = True
-                
-        while self.mRunning:            
-            xRd, xWr, xErr = select.select(aReadList, [], aReadList)
-            
-            if not xRd and not xWr and not xErr:
+        print(f'websocket {self.m_web_addr[0]} at {self.m_web_addr[1]}')
+
+        while self.m_running:
+            x_rd, x_wr, x_err = select.select(x_read_list, [], x_read_list)
+            if not x_rd and not x_wr and not x_err:
                 continue
                             
-            for xSocket in xErr:                
-                if xSocket is self.mWebSocketServer:
-                    xSocket.close()
-                    aReadList.remove(xSocket)                    
+            for x_socket in x_err:
+                if x_socket is self.m_web_socket:
+                    x_socket.close()
+                    x_read_list.remove(x_socket)
                     print('server socket closed')
                     raise
                 else:
-                    self.mWebClient = None
-                    xSocket.close()
-                    aReadList.remove(xSocket)                    
-                    self.mClients.pop(xSocket)
-                pass
-            
-            for xSocket in xRd:
-                if xSocket is self.mWebSocketServer:
-                    try:
-                        xCltAddr = self.mWebSocketServer.accept()
-                        self.mClients[xCltAddr[0]] = TWebSocketClient(xCltAddr, self.mWebAddr)
-                        aReadList.append(xCltAddr[0])
-                    except:
-                        break
+                    x_read_list.remove(x_socket)
+                    x_socket.close()
+                    self.m_clients.pop(x_socket)
+
+            for x_socket in x_rd:
+                if x_socket is self.m_web_socket:
+                    x_clt_addr = self.m_web_socket.accept()
+                    self.m_clients[x_clt_addr[0]] = TWebSocketClient(x_clt_addr, self.m_web_addr, self.m_agent_class)
+                    x_read_list.append(x_clt_addr[0])
                 else:
                     try:
-                        self.mClients.get(xSocket).doInput()
+                        x_client: TWebSocketClient = self.m_clients.get(x_socket)
+                        x_client.handle_request()
                     except (TWebSocketException, ConnectionResetError, ConnectionAbortedError) as aEx:
-                        xSocket.close()
-                        aReadList.remove(xSocket)
-                        self.mClients.pop(xSocket)
-
+                        x_socket.close()
+                        x_read_list.remove(x_socket)
+                        self.m_clients.pop(x_socket)

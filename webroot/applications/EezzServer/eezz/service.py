@@ -21,42 +21,45 @@
 
  
 """
-# --------------------------------------------------------
-# --------------------------------------------------------
-def singleton(aCls):
-    aInstances = {}
-    def getInstance():
-        if aCls not in aInstances:
-            aInstances[aCls] = aCls()
-        return aInstances[aCls]
-    return getInstance
+from dataclasses import dataclass
+from pathlib     import Path
+from lark        import Transformer
 
-# --------------------------------------------------------
-# --------------------------------------------------------
+def singleton(a_class):
+    """ Singleton decorator """
+    instances = {}
+
+    def get_instance():
+        if a_class not in instances:
+            instances[a_class] = a_class()
+        return instances[a_class]
+    return get_instance
+
+
 @singleton
-class TBlackBoard:
-    # --------------------------------------------------------
-    # --------------------------------------------------------
-    def __init__(self):
-        self.mRootPath    = '/'
-        self.mDocRoot     = '/' 
-        self.mBlackBoard  = dict()
-    
-    def addMesage(self, aName, aData):
-        for xInterest in self.mBlackBoard.values():
-            xInterest[aName] = aData
-    
-    def addInterest(self, aCookie):
-        if not self.mBlackBoard.get(aCookie):
-            self.mBlackBoard[aCookie] = dict()
-    
-    def delInterest(self, aCookie):
-        if self.mBlackBoard.get(aCookie):
-            del self.mBlackBoard[aCookie]
+@dataclass(kw_only=True)
+class TService:
+    root_path:        Path | None = None
+    document_path:    Path | None = None
+    application_path: Path | None = None
+    public_path:      Path | None = None
+    resource_path:    Path | None = None
 
-    def getInterest(self, aCookie):
-        if self.mBlackBoard.get(aCookie):
-            xInterest = self.mBlackBoard[aCookie]
-            self.mBlackBoard[aCookie] = dict()
-            return xInterest
-        
+    def __post_init__(self):
+        if not self.root_path:
+            self.root_path = Path('/home/paul/Projects/github/EezzServer2/webroot')
+        self.resource_path    = self.root_path / 'resources'
+        self.public_path      = self.root_path / 'public'
+        self.application_path = self.root_path / 'applications'
+        self.document_path    = self.root_path / 'database'
+
+    def format_json(self, a_json: dict, a_fmt):
+        for x, y in a_json.items():
+            if isinstance(y, dict):
+                self.format_json(y, a_fmt)
+            else:
+                a_json.update({x: a_fmt(y)})
+        return a_json
+
+
+

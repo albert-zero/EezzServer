@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Navigation template</title>
+</head>
+
+<body>
+    <table id="{table.id}" data-eezz="assign: {table.module}, name: {table.name}, columns: [{table.columns}]">
+        <thead>
+            <tr data-eezz="template: row, match: header">
+                <th class="clzz_th" data-eezz="template: cell, event: do_sort(index={cell.index})">{cell.value}</th></tr>
+        </thead>
+        <tbody>
+            <tr data-eezz="template: row, match: body, event: do_select(index={row.index})">
+                <td class='clzz_{cell.type}' data-eezz="template: cell">{cell.value}</td></tr>
+        </tbody>
+        <tfoot>
+            <tr data-eezz="template: navigation, display_if: {table.block_navigation}">
+                <td style="text-align:center">
+                    <img class="clzz_navigation_img" src ="navbar.jpg" style="height:20px; width:160px" usemap="#{table.navigation}"/>
+                    <map class="clzz_navigation" name="{table.navigation}">
+                        <area shape="rect" coords="  0, 0,  40, 20" data-eezz="event: navigate(where_togo = {table.top} )"/>
+                        <area shape="rect" coords=" 40, 0,  80, 20" data-eezz="event: navigate(where_togo = {table.prev} )"/>
+                        <area shape="rect" coords=" 80, 0, 120, 20" data-eezz="event: navigate(where_togo = {table.next} )"/>
+                        <area shape="rect" coords="120, 0, 160, 20" data-eezz="event: navigate(where_togo = {table.last} )"/></map>
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+</body>
+</html>
