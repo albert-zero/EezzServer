@@ -21,11 +21,13 @@
 
  
 """
-from dataclasses import dataclass
-from pathlib     import Path
-from importlib   import import_module
+from   bs4         import Tag
+from   dataclasses import dataclass
+from   pathlib     import Path
+from   importlib   import import_module
 import sys
-from lark        import Transformer
+from   lark        import Transformer
+import json
 
 
 def singleton(a_class):
@@ -59,14 +61,6 @@ class TService:
         self.application_path = self.root_path / 'applications'
         self.document_path    = self.root_path / 'database'
 
-    def format_json(self, a_json: dict, a_fmt):
-        for x, y in a_json.items():
-            if isinstance(y, dict):
-                self.format_json(y, a_fmt)
-            else:
-                a_json.update({x: a_fmt(y)})
-        return a_json
-
     def dynamic_call(self):
         x_package_name = 'examples'
         x_module_name  = 'directory'
@@ -79,6 +73,58 @@ class TService:
         x_method  = getattr(x_object, x_method_name)
         x_method()
         pass
+
+
+class TServiceCompiler(Transformer):
+    """ Transforms the parser tree into a list of dictionaries """
+    def __init__(self, a_tag: Tag, a_id: str = ''):
+        super().__init__()
+        self.m_id  = a_id
+        self.m_tag = a_tag
+
+    def template_section(self, item):
+        if item[0] in ('name', 'match'):
+            self.m_tag[f'data-eezz-{item[0]}'] = item[1]
+        return {item[0]: item[1]}
+
+    def simple_str(self, item):
+        x_str = ''.join([str(x) for x in item])
+        return x_str
+
+    def format_string(self, item):
+        x_str = '.'.join(item)
+        return f'{{{x_str}}}'
+
+    def assignment(self, item):
+        x_key, x_value = item
+        return {x_key: x_value}
+
+    def list_arguments(self, item):
+        """ Concatenate the argument list for function calls """
+        x_result = dict()
+        for x in item:
+            x_result.update(x)
+        return x_result
+
+    def qualified_string(self, item):
+        x_tree = item[0]
+        return '.'.join([str(x[0]) for x in x_tree.children])
+
+    def format_value(self, item):
+        """ Concatenate a qualified string """
+        x_tree = item[0]
+        x_str = '.'.join([str(x[0]) for x in x_tree.children])
+        return f"{{{x_str}}}"
+
+    def funct_assignment(self, item):
+        x_function, x_args = item[0].children
+        self.m_tag[f'data-eezz-json'] = json.dumps({'event': 'assign', 'function': x_function, 'args': x_args, 'id': self.m_id})
+        return {'function': x_function, 'args': x_args, 'id': self.m_id}
+
+    def table_assignment(self, item):
+        x_function, x_args = item[0].children
+        self.m_tag[f'data-eezz-json'] = json.dumps({'event': 'onselect', 'function': x_function, 'args': x_args})
+        return {'assign': x_function, 'args': x_args}
 
 
 if __name__ == '__main__':

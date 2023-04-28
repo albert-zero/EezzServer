@@ -7,6 +7,7 @@
 
 <body>
     <table id="{table.id}" data-eezz="assign: {table.module}, name: {table.name}, columns: [{table.columns}]">
+        <caption data-eezz="template: table">{table.title}</caption>
         <thead>
             <tr data-eezz="template: row, match: header">
                 <th class="clzz_th" data-eezz="template: cell, event: do_sort(index={cell.index})">{cell.value}</th></tr>

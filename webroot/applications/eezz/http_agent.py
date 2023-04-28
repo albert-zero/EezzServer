@@ -20,60 +20,8 @@ from functools import reduce
 from itertools import chain
 from table     import TTable, TTableCell, TTableRow
 from websocket import TWebSocketAgent
-from service   import TService
+from service   import TService, TServiceCompiler
 from lark      import Lark, Transformer, Tree, UnexpectedCharacters
-
-
-class TEezzAttrTransformer(Transformer):
-    """ Transforms the parser tree into a list of dictionaries """
-    def __init__(self, a_tag: Tag, a_id: str = ''):
-        super().__init__()
-        self.m_id  = a_id
-        self.m_tag = a_tag
-
-    def template_section(self, item):
-        if item[0] in ('name', 'match'):
-            self.m_tag[f'data-eezz-{item[0]}'] = item[1]
-        return {item[0]: item[1]}
-
-    def simple_str(self, item):
-        x_str = ''.join([str(x) for x in item])
-        return x_str
-
-    def format_string(self, item):
-        x_str = '.'.join(item)
-        return f'{{{x_str}}}'
-
-    def assignment(self, item):
-        x_key, x_value = item
-        return {x_key: x_value}
-
-    def list_arguments(self, item):
-        """ Concatenate the argument list for function calls """
-        x_result = dict()
-        for x in item:
-            x_result.update(x)
-        return x_result
-
-    def qualified_string(self, item):
-        x_tree = item[0]
-        return '.'.join([str(x[0]) for x in x_tree.children])
-
-    def format_value(self, item):
-        """ Concatenate a qualified string """
-        x_tree = item[0]
-        x_str = '.'.join([str(x[0]) for x in x_tree.children])
-        return f"{{{x_str}}}"
-
-    def funct_assignment(self, item):
-        x_function, x_args = item[0].children
-        self.m_tag[f'data-eezz-json'] = json.dumps({'event': 'assign', 'function': x_function, 'args': x_args, 'id': self.m_id})
-        return {'function': x_function, 'args': x_args, 'id': self.m_id}
-
-    def table_assignment(self, item):
-        x_function, x_args = item[0].children
-        self.m_tag[f'data-eezz-json'] = json.dumps({'event': 'onselect', 'function': x_function, 'args': x_args})
-        return {'assign': x_function, 'args': x_args}
 
 
 class TDirView(TTable):
@@ -133,6 +81,8 @@ class THttpAgent(TWebSocketAgent):
 
         x_templ_table = x_template.body.table
         for x_chrom in x_soup.css.select('table[data-eezz]'):
+            if not x_chrom.css.select('caption'):
+                x_chrom.append(copy.deepcopy(x_templ_table.caption))
             if not x_chrom.css.select('thead'):
                 x_chrom.append(copy.deepcopy(x_templ_table.thead))
             if not x_chrom.css.select('tbody'):
@@ -154,24 +104,28 @@ class THttpAgent(TWebSocketAgent):
             x_data = x.attrs.pop('data-eezz')
             try:
                 x_syntax_tree = a_parser.parse(x_data)
-                x_transformer = TEezzAttrTransformer(x, a_id)
+                x_transformer = TServiceCompiler(x, a_id)
                 x_list_json   = x_transformer.transform(x_syntax_tree)
                 x['data-eezz-compiled'] = "ok"
             except UnexpectedCharacters as ex:
                 x['data-eezz-compiled'] = f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}'
                 print(f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}')
 
+    def format_attributes(self, a_key: str, a_value: str, a_fmt_funct) -> str:
+        """ Eval template tag-attributes, diving deep into data-eezz-json """
+        if a_key == 'data-eezz-json':
+            x_json = json.loads(a_value)
+            x_json.update({'args': {x: a_fmt_funct(y) for x, y in x_json['args'].items()}})
+            x_fmt_val = json.dumps(x_json)
+        else:
+            x_fmt_val = a_fmt_funct(a_value)
+        return x_fmt_val
+
     def generate_html_cells(self, a_tag: Tag, a_cell: TTableCell) -> Tag:
         """ The cell attributes distinguish between dictionary json-string and string values
         The json-string values are formatted in place using successive replace
         """
-        x_fmt_funct = lambda x: x.format(cell=a_cell) if isinstance(x, str) else x
-        x_fmt_attrs = {x_key: x_fmt_funct(x_val) for x_key, x_val in a_tag.attrs.items() if x_key != 'data-eezz-json'}
-        x_service   = TService()
-        if 'data-eezz-json' in a_tag.attrs:
-            x_fmt_json = x_service.format_json(json.loads(a_tag.attrs['data-eezz-json']), x_fmt_funct)
-            x_fmt_attrs['data-eezz-json'] = json.dumps(x_fmt_json)
-
+        x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(cell=a_cell)) for x, y in a_tag.attrs.items()}
         x_new_tag = Tag(name=a_tag.name, attrs=x_fmt_attrs)
         x_new_tag.string = a_tag.string.format(cell=a_cell)
         return x_new_tag
@@ -179,13 +133,7 @@ class THttpAgent(TWebSocketAgent):
     def generate_html_rows(self, a_html_cells: list, a_tag: Tag, a_row: TTableRow) -> Tag:
         """ This operation add fixed cells to the table.
         Cells which are not included as template for table data are used to add a constant info to the row"""
-        x_fmt_funct = lambda x: x.format(row=a_row) if isinstance(x, str) else x
-        x_fmt_attrs = {x_key: x_fmt_funct(x_val) for x_key, x_val in a_tag.attrs.items() if x_key != 'data-eezz-json'}
-        x_service    = TService()
-        if 'data-eezz-json' in a_tag.attrs:
-            x_fmt_json = x_service.format_json(json.loads(a_tag.attrs['data-eezz-json']), x_fmt_funct)
-            x_fmt_attrs['data-eezz-json'] = json.dumps(x_fmt_json)
-
+        x_fmt_attrs  = {x: self.format_attributes(x, y, lambda z: z.format(row=a_row)) for x, y in a_tag.attrs.items()}
         x_html_cells = [[copy.deepcopy(x)] if not x.has_attr('data-eezz-compiled') else a_html_cells for x in a_tag.css.select('th,td')]
         x_html_cells = list(chain.from_iterable(x_html_cells))
         x_new_tag = Tag(name=a_tag.name, attrs=x_fmt_attrs)
@@ -194,15 +142,9 @@ class THttpAgent(TWebSocketAgent):
         return x_new_tag
 
     def generate_html_options(self, a_tag: Tag, a_row: TTableRow, a_header: TTableRow) -> Tag:
-        x_fmt_funct = lambda x: x.format(row=a_row) if isinstance(x, str) else x
+        x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(roe=a_row)) for x, y in a_tag.attrs.items()}
         x_fmt_row   = {x: y for x, y in zip(a_header.cells, a_row.cells)}
-        x_fmt_attrs = {x_key: x_fmt_funct(x_val) for x_key, x_val in a_opt_tag.attrs.items() if x_key != 'data-eezz-json'}
-        x_service    = TService()
-        if 'data-eezz-json' in a_tag.attrs:
-            x_fmt_json = x_service.format_json(json.loads(a_tag.attrs['data-eezz-json']), x_fmt_funct)
-            x_fmt_attrs['data-eezz-json'] = json.dumps(x_fmt_json)
-
-        x_new_tag = Tag(name=a_tag.name, attrs=x_fmt_attrs)
+        x_new_tag   = Tag(name=a_tag.name, attrs=x_fmt_attrs)
         x_new_tag.string = a_tag.string.format(**x_fmt_row)
         return x_new_tag
 
@@ -233,7 +175,7 @@ class THttpAgent(TWebSocketAgent):
                              for x_html_cells, x_tag_tr, x_row in x_list_html_cells]
 
         # separate header and body again for the result {a_table_tag["id"]}
-        x_html = {'thead': '', 'tbody': ''}
+        x_html = {'caption': a_table_tag.caption.string.format(table=self.table_view), 'thead': '', 'tbody': ''}
         if len(x_list_html_rows) > 0:
             x_html.update({'thead': x_list_html_rows[0]})
         if len(x_list_html_rows) > 1:
