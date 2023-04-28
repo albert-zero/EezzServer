@@ -265,3 +265,5 @@ if __name__ == '__main__':
     for xx in list_table:
         xx_table = xx_gen.generate_html_table(xx)
         print(xx_table)
+
+    print('done')
