@@ -33,15 +33,12 @@ Documentation:
 """
 import os
 import collections
-import sqlite3
 import typing
-from datetime import date
-from copy import deepcopy
-import uuid
-from dataclasses import dataclass
-from typing import Any, List
-from enum import Enum
-from pathlib import Path
+from   dataclasses import dataclass
+from   typing      import List
+from   enum        import Enum
+from   pathlib     import Path
+from   datetime    import datetime, timezone
 
 
 class TNavigation(Enum):
@@ -114,7 +111,7 @@ class TTable( collections.UserList ):
         x_cells = [TTableCell(value=x_str, index=x_inx, width=len(x_str)) for x_inx, x_str in enumerate(self.column_names)]
         self.header_row = TTableRow(index=0, cells=x_cells, type='header')
 
-    def append(self, table_row: list, attrs: dict = None, row_type: str = ''):
+    def append(self, table_row: list, attrs: dict = None, row_type: str = 'body'):
         """ Append a row into the table
         This procedure also defines the column type and the width """
         # define the type with the first line inserted
@@ -187,7 +184,7 @@ class TTable( collections.UserList ):
         """ Print ASCII formatted table """
         x_format_type = {'int':      lambda x_size, x_val: ' {{:>{}}} '.format(x_size).format( x_val),
                          'str':      lambda x_size, x_val: ' {{:<{}}} '.format(x_size).format(x_val),
-                         'float':    lambda x_size, x_val: ' {{:>{}.2}} '.format(x_size, x_val),
+                         'float':    lambda x_size, x_val: ' {{:>{}.2}} '.format(x_size).format(x_val),
                          'datetime': lambda x_size, x_val: ' {{:>{}}} '.format(x_size).format(x_val.strftime("%m/%d/%Y, %H:%M:%S"))}
 
         print(f'Table : {self.title}')
@@ -206,14 +203,13 @@ class TTable( collections.UserList ):
 
 if __name__ == '__main__':
     a_path  = Path.cwd()
-    a_table = TTable(column_names=['Path', 'File'])
-    # olumn_names=['Path', 'Files'], table_title='Directory', table_attrs={'path':a_path})
+    a_table = TTable(column_names=['File', 'Size', 'Access'])
 
     for x in a_path.iterdir():
-        a_table.append([str(x.parent), str(x.name)], attrs={'is_dir': x.is_dir()})
+        x_stat = os.stat(x.name)
+        x_time = datetime.fromtimestamp(x_stat.st_atime, tz=timezone.utc)
+        a_table.append([str(x.name), x_stat.st_size, x_time], attrs={'is_dir': x.is_dir()})
 
-    a_table.visible_items = 5
     a_table.navigate(TNavigation.NEXT)
     a_table.do_sort(1)
     a_table.print()
-

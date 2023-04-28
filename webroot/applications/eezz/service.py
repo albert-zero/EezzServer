@@ -23,15 +23,18 @@
 """
 from dataclasses import dataclass
 from pathlib     import Path
+from importlib   import import_module
+import sys
 from lark        import Transformer
+
 
 def singleton(a_class):
     """ Singleton decorator """
     instances = {}
 
-    def get_instance():
+    def get_instance(**kwargs):
         if a_class not in instances:
-            instances[a_class] = a_class()
+            instances[a_class] = a_class(**kwargs)
         return instances[a_class]
     return get_instance
 
@@ -39,7 +42,7 @@ def singleton(a_class):
 @singleton
 @dataclass(kw_only=True)
 class TService:
-    root_path:        Path | None = None
+    root_path:        Path
     document_path:    Path | None = None
     application_path: Path | None = None
     public_path:      Path | None = None
@@ -48,6 +51,9 @@ class TService:
     def __post_init__(self):
         if not self.root_path:
             self.root_path = Path('/home/paul/Projects/github/EezzServer2/webroot')
+        if isinstance(self.root_path, str):
+            self.root_path = Path(self.root_path)
+
         self.resource_path    = self.root_path / 'resources'
         self.public_path      = self.root_path / 'public'
         self.application_path = self.root_path / 'applications'
@@ -61,5 +67,22 @@ class TService:
                 a_json.update({x: a_fmt(y)})
         return a_json
 
+    def dynamic_call(self):
+        x_package_name = 'examples'
+        x_module_name  = 'directory'
+        x_class_name   = 'TDirView'
+        x_method_name  = 'print'
+        sys.path.append(str(self.application_path / x_package_name))
+        x_module  = import_module(x_module_name)
+        x_class   = getattr(x_module, x_class_name)
+        x_object  = x_class(path='/')
+        x_method  = getattr(x_object, x_method_name)
+        x_method()
+        pass
 
 
+if __name__ == '__main__':
+    xsys = TService(root_path='/home/paul/Projects/github/EezzServer2/webroot')
+    xsys.dynamic_call()
+
+    print(xsys.root_path)

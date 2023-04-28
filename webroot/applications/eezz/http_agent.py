@@ -147,13 +147,12 @@ class THttpAgent(TWebSocketAgent):
 
         # Compiling the reset of the document
         self.compile_data(x_parser, x_soup.css.select('[data-eezz]'), '')
-        print(x_soup.prettify())
         return x_soup.prettify()
 
     def compile_data(self, a_parser: Lark, a_tag_list: list, a_id: str) -> None:
         for x in a_tag_list:
+            x_data = x.attrs.pop('data-eezz')
             try:
-                x_data        = x.pop('data-eezz')
                 x_syntax_tree = a_parser.parse(x_data)
                 x_transformer = TEezzAttrTransformer(x, a_id)
                 x_list_json   = x_transformer.transform(x_syntax_tree)
@@ -187,28 +186,28 @@ class THttpAgent(TWebSocketAgent):
             x_fmt_json = x_service.format_json(json.loads(a_tag.attrs['data-eezz-json']), x_fmt_funct)
             x_fmt_attrs['data-eezz-json'] = json.dumps(x_fmt_json)
 
-        x_html_cells = [[copy.deepcopy(x)] if not x.has_attr('data-eezz-json') else a_html_cells for x in a_tag.css.select('th,td')]
+        x_html_cells = [[copy.deepcopy(x)] if not x.has_attr('data-eezz-compiled') else a_html_cells for x in a_tag.css.select('th,td')]
         x_html_cells = list(chain.from_iterable(x_html_cells))
         x_new_tag = Tag(name=a_tag.name, attrs=x_fmt_attrs)
         for x in x_html_cells:
             x_new_tag.append(x)
         return x_new_tag
 
-    def generate_html_options(self, a_opt_tag: Tag, a_row: TTableRow, a_header: TTableRow) -> Tag:
+    def generate_html_options(self, a_tag: Tag, a_row: TTableRow, a_header: TTableRow) -> Tag:
         x_fmt_funct = lambda x: x.format(row=a_row) if isinstance(x, str) else x
         x_fmt_row   = {x: y for x, y in zip(a_header.cells, a_row.cells)}
         x_fmt_attrs = {x_key: x_fmt_funct(x_val) for x_key, x_val in a_opt_tag.attrs.items() if x_key != 'data-eezz-json'}
         x_service    = TService()
-        if 'data-eezz-json' in a_opt_tag.attrs:
+        if 'data-eezz-json' in a_tag.attrs:
             x_fmt_json = x_service.format_json(json.loads(a_tag.attrs['data-eezz-json']), x_fmt_funct)
             x_fmt_attrs['data-eezz-json'] = json.dumps(x_fmt_json)
 
-        x_new_tag = Tag(name=a_opt_tag.name, attrs=x_fmt_attrs)
-        x_new_tag.string = a_opt_tag.string.format(**x_fmt_row)
+        x_new_tag = Tag(name=a_tag.name, attrs=x_fmt_attrs)
+        x_new_tag.string = a_tag.string.format(**x_fmt_row)
         return x_new_tag
 
     def generate_html_table(self, a_table_tag: Tag) -> dict:
-        x_row_template = a_table_tag.css.select('tr[data-eezz-json]')
+        x_row_template = a_table_tag.css.select('tr[data-eezz-compiled]')
         x_row_viewport = self.table_view.get_visible_rows()
         x_table_header = self.table_view.get_header_row()
 
@@ -221,8 +220,8 @@ class THttpAgent(TWebSocketAgent):
         for x_row, x_cells in zip(x_row_viewport, x_range_cells):
             x_row.cells = x_cells
 
-        # Evaluate match: It's possible to have a template for each row type (header and body)
-        x_format_row      = [([x_tag for x_tag in x_row_template if re.search(fr'"match"\s*:\s*"{x_row.type}"', x_tag.attrs['data-eezz-json'])], x_row)
+        # Evaluate match: It's possible to have a template for each row type (header and body):
+        x_format_row      = [([x_tag for x_tag in x_row_template if x_tag.has_attr('data-eezz-match') and x_tag['data-eezz-match'] == x_row.type], x_row)
                              for x_row in x_row_viewport]
         x_format_cell     = [(list(product(x_tag[0].css.select('td,th'), x_row.cells)), x_tag[0], x_row)
                              for x_tag, x_row in x_format_row if x_tag]
@@ -252,52 +251,17 @@ class THttpAgent(TWebSocketAgent):
 
 
 if __name__ == '__main__':
-    text1 = """
-    <table data-eezz="
-        name  : directory_list,
-        table : TTable.test()
-        column: [File, Size]
-        ">
-        <thead></thead>
-        <tbody data-eezz="template">
-            <tr></tr>
-            <tr data-eezz="template: table.row
-                events    : {
-                    onselect : table.select_row( tr.row_id )
-                }        
-            ">
-            <td data-eezz="
-                css_class : eezz_string 
-                template  : table.column, 
-                attributes: {
-                    id = column.id,
-                }" >{column.value}</td>
-            <td data-eezz="
-                template  : column, 
-                range     : [CResult],
-                css_format: {
-                    class : eezz_int_positive if column.value > 0 else eezz_int_negative
-                }  
-                attributes: {
-                    id = column.id,
-                }" >{column.value}</td>
-            <td class="eezz_class_ico"><a href="{row.icon}"></a></td>
-            <td class="eezz_class_ico">{row.icon}</td></tr>
-    </tbody>
-    </table>            
-                """
-
     text2 = """
     <table data-eezz="name: directory, assign: TDirView(path = value)"> </table>
     """
 
     # list_table = aSoup.css.select('table[data-eezz]')
-
+    TService(root_path=Path('/home/paul/Projects/github/EezzServer2/webroot'))
     xx_gen  = THttpAgent()
     xx_html = xx_gen.do_get(text2)
     xx_soup = BeautifulSoup(xx_html, 'html.parser', multi_valued_attributes=None)
 
-    list_table = xx_soup.css.select('table[data-eezz-assign]')
+    list_table = xx_soup.css.select('table[data-eezz-compiled]')
     for xx in list_table:
         xx_table = xx_gen.generate_html_table(xx)
         print(xx_table)
