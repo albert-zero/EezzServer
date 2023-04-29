@@ -12,7 +12,7 @@
                   | format_string
                   | qualified_string
 
-?function_call    : string "(" list_arguments ")"
+?function_call    : qualified_string "(" list_arguments ")"
 
 string            : CNAME                               -> simple_str
 ?quoted_string    : ESCAPED_STRING                      -> simple_str

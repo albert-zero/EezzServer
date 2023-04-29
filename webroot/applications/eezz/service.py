@@ -83,7 +83,7 @@ class TServiceCompiler(Transformer):
         self.m_tag = a_tag
 
     def template_section(self, item):
-        if item[0] in ('name', 'match'):
+        if item[0] in ('name', 'match', 'template'):
             self.m_tag[f'data-eezz-{item[0]}'] = item[1]
         return {item[0]: item[1]}
 

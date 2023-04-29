@@ -53,8 +53,8 @@ class THttpAgent(TWebSocketAgent):
         if 'initialize' in request_data:
             # store {ID : (html, TTable) }
             x_soup    = BeautifulSoup(request_data['initialize'], 'html.parser', multi_valued_attributes=None)
-            x_updates.extend([self.generate_html_table(x)  for x in  x_soup.css.select('table[data-eezz-json]')])
-            x_updates.extend([self.generate_html_select(x) for x in  x_soup.css.select('select[data-eezz-json]')] )
+            x_updates.extend([self.generate_html_table(x)  for x in  x_soup.css.select('table[data-eezz-compiled]')])
+            x_updates.extend([self.generate_html_select(x) for x in  x_soup.css.select('select[data-eezz-compiled]')] )
             x_result = {'update': x_updates}
             return json.dumps(x_result)
 
@@ -100,6 +100,7 @@ class THttpAgent(TWebSocketAgent):
         return x_soup.prettify()
 
     def compile_data(self, a_parser: Lark, a_tag_list: list, a_id: str) -> None:
+        x_service = TService()
         for x in a_tag_list:
             x_data = x.attrs.pop('data-eezz')
             try:
@@ -107,6 +108,14 @@ class THttpAgent(TWebSocketAgent):
                 x_transformer = TServiceCompiler(x, a_id)
                 x_list_json   = x_transformer.transform(x_syntax_tree)
                 x['data-eezz-compiled'] = "ok"
+                if x.has_attr('data-eezz-template') and x['data-eezz-template'] == 'websocket':
+                    x_path      = Path(x_service.resource_path / 'websocket.js')
+                    x_ws_descr  = """var g_eezz_socket_addr = "ws://{host}:{port}";\n """.format(host='localhost', port=8100, args='')
+                    x_ws_descr += """var g_eezz_arguments   = "{args}";\n """.format(args='')
+                    with x_path.open('r') as f:
+                        x_ws_descr += f.read()
+                    x.string = x_ws_descr
+                    pass
             except UnexpectedCharacters as ex:
                 x['data-eezz-compiled'] = f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}'
                 print(f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}')
@@ -126,7 +135,7 @@ class THttpAgent(TWebSocketAgent):
         The json-string values are formatted in place using successive replace
         """
         x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(cell=a_cell)) for x, y in a_tag.attrs.items()}
-        x_new_tag = Tag(name=a_tag.name, attrs=x_fmt_attrs)
+        x_new_tag   = Tag(name=a_tag.name, attrs=x_fmt_attrs)
         x_new_tag.string = a_tag.string.format(cell=a_cell)
         return x_new_tag
 
@@ -136,7 +145,7 @@ class THttpAgent(TWebSocketAgent):
         x_fmt_attrs  = {x: self.format_attributes(x, y, lambda z: z.format(row=a_row)) for x, y in a_tag.attrs.items()}
         x_html_cells = [[copy.deepcopy(x)] if not x.has_attr('data-eezz-compiled') else a_html_cells for x in a_tag.css.select('th,td')]
         x_html_cells = list(chain.from_iterable(x_html_cells))
-        x_new_tag = Tag(name=a_tag.name, attrs=x_fmt_attrs)
+        x_new_tag    = Tag(name=a_tag.name, attrs=x_fmt_attrs)
         for x in x_html_cells:
             x_new_tag.append(x)
         return x_new_tag
@@ -177,7 +186,7 @@ class THttpAgent(TWebSocketAgent):
         # separate header and body again for the result {a_table_tag["id"]}
         x_html = {'caption': a_table_tag.caption.string.format(table=self.table_view), 'thead': '', 'tbody': ''}
         if len(x_list_html_rows) > 0:
-            x_html.update({'thead': x_list_html_rows[0]})
+            x_html.update({'thead': str(x_list_html_rows[0])})
         if len(x_list_html_rows) > 1:
             x_html.update({'tbody': ''.join([str(x) for x in x_list_html_rows[1:]])})
 
@@ -207,5 +216,9 @@ if __name__ == '__main__':
     for xx in list_table:
         xx_table = xx_gen.generate_html_table(xx)
         print(xx_table)
+
+        x_result = {'update': [xx_table]}
+        x_str    = json.dumps(x_result)
+        print(x_str)
 
     print('done')
