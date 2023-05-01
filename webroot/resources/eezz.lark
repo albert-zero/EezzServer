@@ -8,14 +8,16 @@
 
 ?list_arguments   : [ assignment  ("," assignment  )* ]
 ?assignment       : string "=" value_string
+
 ?value_string     : string
                   | format_string
                   | qualified_string
+                  | quoted_string
 
 ?function_call    : qualified_string "(" list_arguments ")"
 
 string            : CNAME                               -> simple_str
-?quoted_string    : ESCAPED_STRING                      -> simple_str
+?quoted_string    : ESCAPED_STRING                      -> escaped_str
 ?qualified_string : [ string ("." string  )* ]
 ?format_string    : "{" [ string ("." string  )* ] "}"
 

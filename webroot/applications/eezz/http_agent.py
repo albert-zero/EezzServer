@@ -51,10 +51,21 @@ class THttpAgent(TWebSocketAgent):
         """ Handle WEB socket requests """
         x_updates = list()
         if 'initialize' in request_data:
-            # store {ID : (html, TTable) }
             x_soup    = BeautifulSoup(request_data['initialize'], 'html.parser', multi_valued_attributes=None)
             x_updates.extend([self.generate_html_table(x)  for x in  x_soup.css.select('table[data-eezz-compiled]')])
             x_updates.extend([self.generate_html_select(x) for x in  x_soup.css.select('select[data-eezz-compiled]')] )
+            x_result = {'update': x_updates}
+            return json.dumps(x_result)
+        if 'update' in request_data:
+            for x in request_data['update']:
+                x_obj, x_method, x_tag  = TService().get_method(x['id'], x['function'])
+                x_method(**x['args'])
+
+                if x_tag.name == 'table':
+                    x_updates.append(self.generate_html_table(x_tag))
+                elif x_tag.name == 'select':
+                    x_updates.append(self.generate_html_select(x_tag))
+
             x_result = {'update': x_updates}
             return json.dumps(x_result)
 
@@ -79,6 +90,9 @@ class THttpAgent(TWebSocketAgent):
         with x_templ_path.open('r') as f:
             x_template = BeautifulSoup(f.read(), 'html.parser', multi_valued_attributes=None)
 
+        if not x_soup.header:
+            x_soup.insert(0, copy.deepcopy(x_template.head))
+
         x_templ_table = x_template.body.table
         for x_chrom in x_soup.css.select('table[data-eezz]'):
             if not x_chrom.css.select('caption'):
@@ -91,8 +105,13 @@ class THttpAgent(TWebSocketAgent):
                 # x_chrom.append(copy.deepcopy(x_temp_table.tfoot))
                 pass
             if not x_chrom.has_attr('id'):
-                x_chrom['id'] = str(uuid.uuid1())
+                x_chrom['id'] = str(uuid.uuid1())[:8]
             # Compile sub-tree using the current table id for events
+            self.compile_data(x_parser, x_chrom.css.select('[data-eezz]'), x_chrom['id'])
+
+        for x_chrom in x_soup.css.select('select[data-eezz], .clzz_grid[data-eezz]'):
+            if not x_chrom.has_attr('id'):
+                x_chrom['id'] = str(uuid.uuid1())[:8]
             self.compile_data(x_parser, x_chrom.css.select('[data-eezz]'), x_chrom['id'])
 
         # Compiling the reset of the document
@@ -102,10 +121,17 @@ class THttpAgent(TWebSocketAgent):
     def compile_data(self, a_parser: Lark, a_tag_list: list, a_id: str) -> None:
         x_service = TService()
         for x in a_tag_list:
+            x_id   = a_id
             x_data = x.attrs.pop('data-eezz')
             try:
+                if not x_data:
+                    return
+
+                if not x_id:
+                    x_id = x.attrs['id']
+
                 x_syntax_tree = a_parser.parse(x_data)
-                x_transformer = TServiceCompiler(x, a_id)
+                x_transformer = TServiceCompiler(x, x_id)
                 x_list_json   = x_transformer.transform(x_syntax_tree)
                 x['data-eezz-compiled'] = "ok"
                 if x.has_attr('data-eezz-template') and x['data-eezz-template'] == 'websocket':
@@ -158,15 +184,16 @@ class THttpAgent(TWebSocketAgent):
         return x_new_tag
 
     def generate_html_table(self, a_table_tag: Tag) -> dict:
+        x_table_obj    = TService().get_object(a_table_tag.attrs['id'])
         x_row_template = a_table_tag.css.select('tr[data-eezz-compiled]')
-        x_row_viewport = self.table_view.get_visible_rows()
-        x_table_header = self.table_view.get_header_row()
+        x_row_viewport = x_table_obj.get_visible_rows()
+        x_table_header = x_table_obj.get_header_row()
 
         # insert the header, so that we could manage header and body in a single stack
         x_row_viewport.insert(0, x_table_header)
 
         # Evaluate the range and re-arrange
-        x_range       = list(range(2).__reversed__())
+        x_range       = list(range(len(x_table_header.cells)))
         x_range_cells = [[x_row.cells[index] for index in x_range] for x_row in x_row_viewport]
         for x_row, x_cells in zip(x_row_viewport, x_range_cells):
             x_row.cells = x_cells
@@ -184,7 +211,7 @@ class THttpAgent(TWebSocketAgent):
                              for x_html_cells, x_tag_tr, x_row in x_list_html_cells]
 
         # separate header and body again for the result {a_table_tag["id"]}
-        x_html = {'caption': a_table_tag.caption.string.format(table=self.table_view), 'thead': '', 'tbody': ''}
+        x_html = {'caption': a_table_tag.caption.string.format(table=x_table_obj), 'thead': '', 'tbody': ''}
         if len(x_list_html_rows) > 0:
             x_html.update({'thead': str(x_list_html_rows[0])})
         if len(x_list_html_rows) > 1:
@@ -203,7 +230,10 @@ class THttpAgent(TWebSocketAgent):
 
 if __name__ == '__main__':
     text2 = """
-    <table data-eezz="name: directory, assign: TDirView(path = value)"> </table>
+    <h1>>header</h1>
+    <table data-eezz='name: directory, assign: examples.directory.TDirView(path="/home/paul")'> </table>
+    
+    <div class="clzz_grid" data-eezz=""></div>
     """
 
     # list_table = aSoup.css.select('table[data-eezz]')
@@ -212,13 +242,18 @@ if __name__ == '__main__':
     xx_html = xx_gen.do_get(text2)
     xx_soup = BeautifulSoup(xx_html, 'html.parser', multi_valued_attributes=None)
 
+    xx_h1_set = xx_soup.css.select('h1')
+    xx_h1     = xx_h1_set[0]
+    xx_str    = xx_h1.string
+    print(xx_str.parent)
+
     list_table = xx_soup.css.select('table[data-eezz-compiled]')
     for xx in list_table:
         xx_table = xx_gen.generate_html_table(xx)
         print(xx_table)
 
-        x_result = {'update': [xx_table]}
-        x_str    = json.dumps(x_result)
-        print(x_str)
+        xx_result = {'update': [xx_table]}
+        xx_str    = json.dumps(xx_result)
+        print(xx_str)
 
     print('done')
