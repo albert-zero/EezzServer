@@ -1,0 +1,12 @@
+
+.clzz_grid {
+	display: inline-grid;
+	column-gap: 5px;
+	row-gap:    5px;
+}
+
+.clzz_grid_item {
+	background-color: gray;
+	border: 1px solid black;
+	text-align: center;
+}
