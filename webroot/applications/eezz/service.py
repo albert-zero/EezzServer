@@ -28,6 +28,7 @@ from   importlib   import import_module
 import sys
 from   lark        import Transformer
 import json
+from   table       import TTable
 from   typing      import Any, Callable
 
 
@@ -86,7 +87,7 @@ class TService:
         x_method = getattr(x_object, a_method_name)
         return x_object, x_method, x_tag
 
-    def get_object(self, obj_id: str) -> object:
+    def get_object(self, obj_id: str) -> TTable:
         x_object, x_tag = self.global_objects[obj_id]
         return x_object
 

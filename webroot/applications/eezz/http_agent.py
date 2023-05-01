@@ -126,7 +126,6 @@ class THttpAgent(TWebSocketAgent):
             try:
                 if not x_data:
                     return
-
                 if not x_id:
                     x_id = x.attrs['id']
 
@@ -141,7 +140,6 @@ class THttpAgent(TWebSocketAgent):
                     with x_path.open('r') as f:
                         x_ws_descr += f.read()
                     x.string = x_ws_descr
-                    pass
             except UnexpectedCharacters as ex:
                 x['data-eezz-compiled'] = f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}'
                 print(f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}')
@@ -226,6 +224,14 @@ class THttpAgent(TWebSocketAgent):
         x_list_html_option = [self.generate_html_options(x_opt_template, x, x_table_header) for x in x_row_viewport]
         return {'id': a_select_tag['id'], 'attrs': {}, 'html': {
                 'option': ''.join([str(x) for x in x_list_html_option])}}
+
+    def generate_html_grid(self, a_tag: Tag) -> dict:
+        x_template = a_tag.css.select('[data-eezz-compiled]')
+        x_table    = TService().get_object(a_tag.attrs['id'])
+        x_row_viewport  = x_table.get_visible_rows()
+        x_table_header  = x_table.get_header_row()
+        x_list_children = [self.generate_html_options(x_template, x, x_table_header) for x in x_row_viewport]
+        return {'id': a_tag['id'], 'attrs': {}, 'html': {'.': ''.join([str(x) for x in x_list_children])}}
 
 
 if __name__ == '__main__':
