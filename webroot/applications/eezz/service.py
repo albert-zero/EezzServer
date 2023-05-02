@@ -51,7 +51,7 @@ class TService:
     application_path: Path = None
     public_path:      Path = None
     resource_path:    Path = None
-    host_name:        str  = 'lcalhost'
+    host_name:        str  = 'localhost'
     websocket_addr:   int  = 8100
     global_objects:   dict = None
 
@@ -141,13 +141,13 @@ class TServiceCompiler(Transformer):
         x_function, x_args = item[0].children
         x_function_descr   = {'function': x_function, 'args': x_args, 'id': self.m_id}
         self.m_tag['onselect'] = 'eezy_click(event, this)'
-        self.m_tag[f'data-eezz-json'] = json.dumps(x_function_descr)
+        self.m_tag['data-eezz-json'] = json.dumps(x_function_descr)
         return x_function_descr
 
     def table_assignment(self, item):
         x_function, x_args = item[0].children
         x_function_descr   = {'function': x_function, 'args': x_args}
-        self.m_tag[f'data-eezz-json'] = json.dumps(x_function_descr)
+        self.m_tag['data-eezz-json'] = json.dumps(x_function_descr)
 
         TService().assign_object(self.m_id, x_function, x_args, self.m_tag)
         return x_function_descr

@@ -35,7 +35,7 @@ import os
 import collections
 import typing
 from   dataclasses import dataclass
-from   typing      import List
+from   typing      import List, Callable
 from   enum        import Enum
 from   pathlib     import Path
 from   datetime    import datetime, timezone
@@ -60,7 +60,7 @@ class TSort(Enum):
 class TTableCell:
     """ Table cell is the smallest unit of a table """
     width:  int
-    value:  int | float | str
+    value:  int | float | str | datetime
     index:  int  = 0
     type:   str  = 'str'
     attrs:  dict = None
@@ -111,7 +111,7 @@ class TTable( collections.UserList ):
         x_cells = [TTableCell(value=x_str, index=x_inx, width=len(x_str)) for x_inx, x_str in enumerate(self.column_names)]
         self.header_row = TTableRow(index=0, cells=x_cells, type='header')
 
-    def append(self, table_row: list, attrs: dict = None, row_type: str = 'body'):
+    def append(self, table_row: list, attrs: dict = None, row_type: str = 'body') -> None:
         """ Append a row into the table
         This procedure also defines the column type and the width """
         # define the type with the first line inserted
@@ -182,7 +182,7 @@ class TTable( collections.UserList ):
 
     def print(self):
         """ Print ASCII formatted table """
-        x_format_type = {'int':      lambda x_size, x_val: ' {{:>{}}} '.format(x_size).format( x_val),
+        x_format_type = {'int':      lambda x_size, x_val: ' {{:>{}}} '.format(x_size).format(x_val),
                          'str':      lambda x_size, x_val: ' {{:<{}}} '.format(x_size).format(x_val),
                          'float':    lambda x_size, x_val: ' {{:>{}.2}} '.format(x_size).format(x_val),
                          'datetime': lambda x_size, x_val: ' {{:>{}}} '.format(x_size).format(x_val.strftime("%m/%d/%Y, %H:%M:%S"))}
@@ -205,10 +205,10 @@ if __name__ == '__main__':
     a_path  = Path.cwd()
     a_table = TTable(column_names=['File', 'Size', 'Access'])
 
-    for x in a_path.iterdir():
-        x_stat = os.stat(x.name)
+    for xx in a_path.iterdir():
+        x_stat = os.stat(xx.name)
         x_time = datetime.fromtimestamp(x_stat.st_atime, tz=timezone.utc)
-        a_table.append([str(x.name), x_stat.st_size, x_time], attrs={'is_dir': x.is_dir()})
+        a_table.append([str(xx.name), x_stat.st_size, x_time], attrs={'is_dir': xx.is_dir()})
 
     a_table.navigate(TNavigation.NEXT)
     a_table.do_sort(1)

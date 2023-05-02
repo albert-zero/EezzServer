@@ -8,52 +8,30 @@
 """
 import json
 import uuid
-from pathlib import Path
-import re
-from typing import Any
-
-from bs4 import BeautifulSoup, PageElement
-from bs4 import Tag
 import copy
-from itertools import product
-from functools import reduce
-from itertools import chain
+
+from pathlib   import Path
+from typing    import Any, Callable
+from bs4       import Tag, BeautifulSoup, NavigableString
+from itertools import product, chain
 from table     import TTable, TTableCell, TTableRow
 from websocket import TWebSocketAgent
 from service   import TService, TServiceCompiler
-from lark      import Lark, Transformer, Tree, UnexpectedCharacters
-
-
-class TDirView(TTable):
-    """ Example class """
-    def __init__(self, path: str):
-        # noinspection PyArgumentList
-        super().__init__(column_names=['Path', 'File'])
-
-        a_path = Path.cwd()
-        self.column_names = ['Path', 'Files']
-        self.table_title = 'Directory'
-        self.table_attrs = {'path': a_path}
-
-        for x in a_path.iterdir():
-            self.append([str(x.parent), str(x.name)], attrs={'is_dir': x.is_dir()})
+from lark      import Lark, UnexpectedCharacters
 
 
 class THttpAgent(TWebSocketAgent):
     """ Agent handles WEB socket events """
     def __init__(self):
         super().__init__()
-        self.table_tag: Tag | None = None
-        self.table_view = TDirView(path='')
-        self.m_path     = Path.cwd()
 
     def handle_request(self, request_data: dict) -> str:
         """ Handle WEB socket requests """
         x_updates = list()
         if 'initialize' in request_data:
-            x_soup    = BeautifulSoup(request_data['initialize'], 'html.parser', multi_valued_attributes=None)
-            x_updates.extend([self.generate_html_table(x)  for x in  x_soup.css.select('table[data-eezz-compiled]')])
-            x_updates.extend([self.generate_html_select(x) for x in  x_soup.css.select('select[data-eezz-compiled]')] )
+            x_soup   = BeautifulSoup(request_data['initialize'], 'html.parser', multi_valued_attributes=None)
+            x_updates.extend([self.generate_html_table(x) for x in  x_soup.css.select('table[data-eezz-compiled]')])
+            x_updates.extend([self.generate_html_grid(x)  for x in  x_soup.css.select('select[data-eezz-compiled], .clzz_grid[data-eezz-compiled]')] )
             x_result = {'update': x_updates}
             return json.dumps(x_result)
         if 'update' in request_data:
@@ -63,8 +41,8 @@ class THttpAgent(TWebSocketAgent):
 
                 if x_tag.name == 'table':
                     x_updates.append(self.generate_html_table(x_tag))
-                elif x_tag.name == 'select':
-                    x_updates.append(self.generate_html_select(x_tag))
+                else:
+                    x_updates.append(self.generate_html_grid(x_tag))
 
             x_result = {'update': x_updates}
             return json.dumps(x_result)
@@ -78,8 +56,8 @@ class THttpAgent(TWebSocketAgent):
         The agent reads the source, compiles the data-eezz sections and adds the web-socket component
         It returns the enriched document
         """
-        x_html      = a_resource
-        x_service   = TService()
+        x_html    = a_resource
+        x_service = TService()
         if isinstance(a_resource, Path):
             with a_resource.open('r', encoding="utf-8") as f:
                 x_html = f.read()
@@ -89,9 +67,6 @@ class THttpAgent(TWebSocketAgent):
         x_templ_path = x_service.resource_path / 'template.html'
         with x_templ_path.open('r') as f:
             x_template = BeautifulSoup(f.read(), 'html.parser', multi_valued_attributes=None)
-
-        if not x_soup.header:
-            x_soup.insert(0, copy.deepcopy(x_template.head))
 
         x_templ_table = x_template.body.table
         for x_chrom in x_soup.css.select('table[data-eezz]'):
@@ -119,6 +94,8 @@ class THttpAgent(TWebSocketAgent):
         return x_soup.prettify()
 
     def compile_data(self, a_parser: Lark, a_tag_list: list, a_id: str) -> None:
+        """ Compile data-eezz-json to data-eezz-compile,
+        create tag attributes and generate tag-id to manage incoming requests """
         x_service = TService()
         for x in a_tag_list:
             x_id   = a_id
@@ -127,7 +104,10 @@ class THttpAgent(TWebSocketAgent):
                 if not x_data:
                     return
                 if not x_id:
-                    x_id = x.attrs['id']
+                    if x.has_attr('id'):
+                        x_id = x.attrs['id']
+                # else:
+                #    return
 
                 x_syntax_tree = a_parser.parse(x_data)
                 x_transformer = TServiceCompiler(x, x_id)
@@ -135,7 +115,7 @@ class THttpAgent(TWebSocketAgent):
                 x['data-eezz-compiled'] = "ok"
                 if x.has_attr('data-eezz-template') and x['data-eezz-template'] == 'websocket':
                     x_path      = Path(x_service.resource_path / 'websocket.js')
-                    x_ws_descr  = """var g_eezz_socket_addr = "ws://{host}:{port}";\n """.format(host='localhost', port=8100, args='')
+                    x_ws_descr  = """var g_eezz_socket_addr = "ws://{host}:{port}";\n """.format(host=TService().host_name, port=TService().websocket_addr, args='')
                     x_ws_descr += """var g_eezz_arguments   = "{args}";\n """.format(args='')
                     with x_path.open('r') as f:
                         x_ws_descr += f.read()
@@ -144,7 +124,7 @@ class THttpAgent(TWebSocketAgent):
                 x['data-eezz-compiled'] = f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}'
                 print(f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}')
 
-    def format_attributes(self, a_key: str, a_value: str, a_fmt_funct) -> str:
+    def format_attributes(self, a_key: str, a_value: str, a_fmt_funct: Callable) -> str:
         """ Eval template tag-attributes, diving deep into data-eezz-json """
         if a_key == 'data-eezz-json':
             x_json = json.loads(a_value)
@@ -155,18 +135,26 @@ class THttpAgent(TWebSocketAgent):
         return x_fmt_val
 
     def generate_html_cells(self, a_tag: Tag, a_cell: TTableCell) -> Tag:
-        """ The cell attributes distinguish between dictionary json-string and string values
-        The json-string values are formatted in place using successive replace
-        """
+        """ Generate HTML cells """
         x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(cell=a_cell)) for x, y in a_tag.attrs.items()}
-        x_new_tag   = Tag(name=a_tag.name, attrs=x_fmt_attrs)
-        x_new_tag.string = a_tag.string.format(cell=a_cell)
+        x_new_tag   = copy.deepcopy(a_tag)
+        for x in x_new_tag.descendants:
+            if x and isinstance(x, Tag):
+                x.string = x.string.format(cell=a_cell)
+        if x_new_tag.string:
+            x_new_tag.string = a_tag.string.format(cell=a_cell)
+        x_new_tag.attrs  = x_fmt_attrs
+
+        # store the date-time in attribute, so it could be used for in-place formatting:
+        if a_cell.type in ('datetime', 'date', 'time'):
+            x_new_tag['timestamp'] = str(a_cell.value.timestamp())
         return x_new_tag
 
     def generate_html_rows(self, a_html_cells: list, a_tag: Tag, a_row: TTableRow) -> Tag:
         """ This operation add fixed cells to the table.
         Cells which are not included as template for table data are used to add a constant info to the row"""
         x_fmt_attrs  = {x: self.format_attributes(x, y, lambda z: z.format(row=a_row)) for x, y in a_tag.attrs.items()}
+        # x_html_cells = a_html_cells
         x_html_cells = [[copy.deepcopy(x)] if not x.has_attr('data-eezz-compiled') else a_html_cells for x in a_tag.css.select('th,td')]
         x_html_cells = list(chain.from_iterable(x_html_cells))
         x_new_tag    = Tag(name=a_tag.name, attrs=x_fmt_attrs)
@@ -174,14 +162,12 @@ class THttpAgent(TWebSocketAgent):
             x_new_tag.append(x)
         return x_new_tag
 
-    def generate_html_options(self, a_tag: Tag, a_row: TTableRow, a_header: TTableRow) -> Tag:
-        x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(roe=a_row)) for x, y in a_tag.attrs.items()}
-        x_fmt_row   = {x: y for x, y in zip(a_header.cells, a_row.cells)}
-        x_new_tag   = Tag(name=a_tag.name, attrs=x_fmt_attrs)
-        x_new_tag.string = a_tag.string.format(**x_fmt_row)
-        return x_new_tag
-
     def generate_html_table(self, a_table_tag: Tag) -> dict:
+        """ Generates a table structure in four steps
+        1. Get the column order and the viewport
+        2. Get the row templates
+        3. Evaluate the table cells
+        4. Send the result separated by table main elements """
         x_table_obj    = TService().get_object(a_table_tag.attrs['id'])
         x_row_template = a_table_tag.css.select('tr[data-eezz-compiled]')
         x_row_viewport = x_table_obj.get_visible_rows()
@@ -197,41 +183,40 @@ class THttpAgent(TWebSocketAgent):
             x_row.cells = x_cells
 
         # Evaluate match: It's possible to have a template for each row type (header and body):
-        x_format_row      = [([x_tag for x_tag in x_row_template if x_tag.has_attr('data-eezz-match') and x_tag['data-eezz-match'] == x_row.type], x_row)
-                             for x_row in x_row_viewport]
-        x_format_cell     = [(list(product(x_tag[0].css.select('td,th'), x_row.cells)), x_tag[0], x_row)
+        x_format_row      = [([x_tag for x_tag in x_row_template if x_tag.has_attr('data-eezz-match') and x_tag['data-eezz-match'] == x_row.type], x_row) for x_row in x_row_viewport]
+        x_format_cell     = [(list(product(x_tag[0].css.select('td[data-eezz-compiled],th[data-eezz-compiled]'), x_row.cells)), x_tag[0], x_row)
                              for x_tag, x_row in x_format_row if x_tag]
 
         # Put all together and create HTML
         x_list_html_cells = [([self.generate_html_cells(x_tag, x_cell) for x_tag, x_cell in x_row_templates], x_tag_tr, x_row)
                              for x_row_templates, x_tag_tr, x_row in x_format_cell]
-        x_list_html_rows  = [(self.generate_html_rows(x_html_cells, x_tag_tr, x_row))
-                             for x_html_cells, x_tag_tr, x_row in x_list_html_cells]
+        x_list_html_rows  = [(self.generate_html_rows(x_html_cells, x_tag_tr, x_row)) for x_html_cells, x_tag_tr, x_row in x_list_html_cells]
 
         # separate header and body again for the result {a_table_tag["id"]}
-        x_html = {'caption': a_table_tag.caption.string.format(table=x_table_obj), 'thead': '', 'tbody': ''}
-        if len(x_list_html_rows) > 0:
-            x_html.update({'thead': str(x_list_html_rows[0])})
-        if len(x_list_html_rows) > 1:
-            x_html.update({'tbody': ''.join([str(x) for x in x_list_html_rows[1:]])})
+        x_html = dict()
+        x_html['caption'] = a_table_tag.caption.string.format(table=x_table_obj)
+        x_html['thead']   = str(x_list_html_rows[0]) if x_list_html_rows else ''
+        x_html['tbody']   = ''.join([str(x) for x in x_list_html_rows[1:]]) if len(x_list_html_rows) > 1 else ''
 
         return {'id': a_table_tag["id"], 'attrs': {}, 'html': x_html}
 
-    def generate_html_select(self, a_select_tag: Tag) -> dict:
-        x_opt_template     = a_select_tag.css.select('option[data-eezz-json]')
-        x_row_viewport     = self.table_view.get_visible_rows()
-        x_table_header     = self.table_view.get_header_row()
-        x_list_html_option = [self.generate_html_options(x_opt_template, x, x_table_header) for x in x_row_viewport]
-        return {'id': a_select_tag['id'], 'attrs': {}, 'html': {
-                'option': ''.join([str(x) for x in x_list_html_option])}}
-
     def generate_html_grid(self, a_tag: Tag) -> dict:
-        x_template = a_tag.css.select('[data-eezz-compiled]')
-        x_table    = TService().get_object(a_tag.attrs['id'])
+        """ Besides the table, supported display is grid (via class clzz_grid or select """
+        x_template      = a_tag.css.select('select[data-eezz-compiled], .clzz_grid[data-eezz-compiled]')
+        x_table         = TService().get_object(a_tag.attrs['id'])
         x_row_viewport  = x_table.get_visible_rows()
         x_table_header  = x_table.get_header_row()
-        x_list_children = [self.generate_html_options(x_template, x, x_table_header) for x in x_row_viewport]
+        x_list_children = [self.generate_html_grid_item(x_template, x, x_table_header) for x in x_row_viewport]
         return {'id': a_tag['id'], 'attrs': {}, 'html': {'.': ''.join([str(x) for x in x_list_children])}}
+
+    def generate_html_grid_item(self, a_tag: Tag, a_row: TTableRow, a_header: TTableRow) -> Tag:
+        """ Generates elements of the same kind, derived from a template and update content
+        according the row values """
+        x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(roe=a_row)) for x, y in a_tag.attrs.items()}
+        x_fmt_row   = {x: y for x, y in zip(a_header.cells, a_row.cells)}
+        x_new_tag   = Tag(name=a_tag.name, attrs=x_fmt_attrs)
+        x_new_tag.string = a_tag.string.format(**x_fmt_row)
+        return x_new_tag
 
 
 if __name__ == '__main__':

@@ -31,7 +31,8 @@ from   websocket      import TWebSocket
 from   pathlib        import Path
 from   http_agent     import THttpAgent
 from   service        import TService
-
+import asyncio
+from threading import Thread
 
 class TWebServer(http.server.HTTPServer):
     """ WEB Server encapsulate the WEB socket implementation """
@@ -67,6 +68,9 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
         """ handle POST request """
         self.handle_request()
 
+    def shutdown(self):
+        self.m_server.shutdown()
+
     def handle_request(self):
         """ handle GET and POST requests """
         x_cookie = http.cookies.SimpleCookie()
@@ -81,6 +85,10 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
 
         if self.m_client[0] in ('localhost', '127.0.0.1'):
             pass
+        if x_query_path == '/shutdown':
+            t = Thread(target=self.m_server.shutdown, args=[])
+            t.start()
+
         x_resource = TService().root_path / f'public/.{x_query_path}'
         if x_resource.is_dir():
             x_resource = TService().root_path / 'public/index.html'
@@ -101,6 +109,12 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             with x_resource.open('rb') as f:
                 self.wfile.write(f.read())
+        elif x_resource.suffix in ('.css'):
+            self.send_response(200)
+            self.send_header('content-type', 'text/css')
+            self.end_headers()
+            with x_resource.open('rb') as f:
+                self.wfile.write(f.read())
 
 
 if __name__ == "__main__":
@@ -116,12 +130,10 @@ if __name__ == "__main__":
     x_opt_parser.add_option("-d", "--host",      dest="http_host",  default="localhost", help="HTTP Hostname")
     x_opt_parser.add_option("-p", "--port",      dest="http_port",  default="8000",      help="HTTP Port")
     x_opt_parser.add_option("-w", "--webroot",   dest="web_root",   default="webroot",   help="Web-Root")
-    x_opt_parser.add_option("-x", "--websocket", dest="web_socket", default="8100",      help="Web-Socket Port")
+    x_opt_parser.add_option("-x", "--websocket", dest="web_socket", default="8100",      help="Web-Socket Port",  type="int")
     
     (x_options, x_args) = x_opt_parser.parse_args()
-    x_service = TService(root_path        = Path(x_options.web_root),
-                         public_path      = Path(x_options.web_root) / 'public',
-                         application_path = Path(x_options.web_root) / 'applications')
+    x_service = TService(root_path = Path(x_options.web_root), websocket_addr=x_options.web_socket)
 
     if x_service.public_path.is_dir():
         os.chdir(x_service.public_path)

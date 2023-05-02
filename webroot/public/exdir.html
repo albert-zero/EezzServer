@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/css/eezz.css">
+    <script data-eezz="template:websocket"></script>
+
+    <script>
+        function eezz_format_update(element) {
+        }
+    </script>
+</head>
+
+<body>
+    <table id="{table.id}" data-eezz='assign: examples.directory.TDirPng(path="/home/paul"), name: Directory'>
+        <caption data-eezz="template: table">{table.title}</caption>
+        <thead>
+            <tr data-eezz="template: row, match: header">
+                 <th></th><th class="clzz_th" data-eezz="template: cell, event: do_sort(index={cell.index})">{cell.value}</th></tr>
+        </thead>
+        <tbody>
+            <tr data-eezz="template: row, match: is_dir, event: do_select(index={row.index})">
+                <td><img src="dir.png"></td><td class='clzz_{cell.type}' data-eezz="template: cell">{cell.value}</td></tr>
+            <tr data-eezz="template: row, match: is_file, event: do_select(index={row.index})">
+                <td><img src="file.png"></td><td class='clzz_{cell.type}' data-eezz="template: cell">{cell.value}</td></tr>
+        </tbody>
+    </table>
+</body>

@@ -27,6 +27,7 @@ function eezz_connect() {
     alert('on connect');
 	g_eezz_web_socket        = new WebSocket(g_eezz_socket_addr);
     g_eezz_web_socket.onopen = function() {
+        alert('on open...');
         window.console.log("open web socket ...");
         var x_body    = document.body;
         var x_json    = {"initialize": x_body.innerHTML, "args": g_eezz_arguments};
@@ -52,6 +53,13 @@ function eezz_connect() {
                 var x_descr = x_array_descr[i];
                 var x_elem  = document.getElementById(x_descr.id);
                 dynamic_update(x_elem, x_descr.html, x_descr.attrs);
+
+                try { // call a user defined function to enable formatting for example datetime: query [timestamp]
+                   if (typeof eezz_format_update === 'function') {
+                        eezz_format_update(x_elem);
+                    };
+                } catch(err) {
+                }
             }
         }
     }
@@ -62,8 +70,15 @@ function eezz_connect() {
 function dynamic_update(a_element, a_json, a_attrs) {
     for (var x in a_json) {
         console.log('update element ' + x);
-        x_structure = a_element.getElementsByTagName(x);
-        x_structure[0].innerHTML = a_json[x];
+        var x_structure;
+        if (x == '.') {
+            x_structure = a_element
+        }
+        else {
+            var x_list  = a_element.getElementsByTagName(x);
+            x_structure = x_list[0];
+        }
+        x_structure.innerHTML = a_json[x];
     }
 }
 
