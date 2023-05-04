@@ -9,11 +9,12 @@
 import json
 import uuid
 import copy
+import re
 
 from pathlib   import Path
 from typing    import Any, Callable
 from bs4       import Tag, BeautifulSoup, NavigableString
-from itertools import product, chain
+from itertools import product, chain, filterfalse
 from table     import TTable, TTableCell, TTableRow
 from websocket import TWebSocketAgent
 from service   import TService, TServiceCompiler
@@ -34,15 +35,30 @@ class THttpAgent(TWebSocketAgent):
             x_updates.extend([self.generate_html_grid(x)  for x in  x_soup.css.select('select[data-eezz-compiled], .clzz_grid[data-eezz-compiled]')] )
             x_result = {'update': x_updates}
             return json.dumps(x_result)
-        if 'update' in request_data:
-            for x in request_data['update']:
-                x_obj, x_method, x_tag  = TService().get_method(x['id'], x['function'])
-                x_method(**x['args'])
+        if 'event' in request_data:
+            try:
+                x_event = request_data['event']
+                x_obj, x_method, x_tag  = TService().get_method(x_event['id'], x_event['function'])
+                x_res   = x_method(**x_event['args'])
 
-                if x_tag.name == 'table':
-                    x_updates.append(self.generate_html_table(x_tag))
-                else:
-                    x_updates.append(self.generate_html_grid(x_tag))
+                for x_key, x_value in x_event['update'].items():
+                    if x_key == 'this.tbody':
+                        x_updates.append(self.generate_html_table(x_tag))
+                    elif x_key == 'this':
+                        x_updates.append(self.generate_html_grid(x_tag))
+                    elif x_value.startswith('table.'):
+                        x_attr_list = x_key.split('.')
+                        x_attr      = '.' if len(x_attr_list) < 2 else '.'.join(x_attr_list[1:])
+                        x_res_v     = f'{{{x_value}}}'.format(table=x_obj)
+                        x_res_d     = {'id': x_attr_list[0], 'attrs': {'result': x_res}, 'html': {x_attr: x_res_v}}
+                        x_updates.append(x_res_d)
+                    elif re.match(r'"\w+"', x_value):
+                        x_attr_list = x_key.split('.')
+                        x_attr      = '.' if len(x_attr_list) < 2 else '.'.join(x_attr_list[1:])
+                        x_res_d     = {'id': x_attr_list[0], 'attrs': {'result': x_res}, 'html': {x_attr: x_value.strip('"')}}
+                        x_updates.append(x_res_d)
+            except KeyError as ex:
+                print(f'key-error in handle_request: {request_data} ')
 
             x_result = {'update': x_updates}
             return json.dumps(x_result)
@@ -183,13 +199,11 @@ class THttpAgent(TWebSocketAgent):
             x_row.cells = x_cells
 
         # Evaluate match: It's possible to have a template for each row type (header and body):
-        x_format_row      = [([x_tag for x_tag in x_row_template if x_tag.has_attr('data-eezz-match') and x_tag['data-eezz-match'] == x_row.type], x_row) for x_row in x_row_viewport]
-        x_format_cell     = [(list(product(x_tag[0].css.select('td[data-eezz-compiled],th[data-eezz-compiled]'), x_row.cells)), x_tag[0], x_row)
-                             for x_tag, x_row in x_format_row if x_tag]
+        x_format_row      = [([x_tag for x_tag in x_row_template if x_tag.has_attr('data-eezz-match') and x_tag['data-eezz-match'] in x_row.type], x_row) for x_row in x_row_viewport]
+        x_format_cell     = [(list(product(x_tag[0].css.select('td[data-eezz-compiled],th[data-eezz-compiled]'), x_row.cells)), x_tag[0], x_row) for x_tag, x_row in x_format_row if x_tag]
 
         # Put all together and create HTML
-        x_list_html_cells = [([self.generate_html_cells(x_tag, x_cell) for x_tag, x_cell in x_row_templates], x_tag_tr, x_row)
-                             for x_row_templates, x_tag_tr, x_row in x_format_cell]
+        x_list_html_cells = [([self.generate_html_cells(x_tag, x_cell) for x_tag, x_cell in x_row_templates], x_tag_tr, x_row) for x_row_templates, x_tag_tr, x_row in x_format_cell]
         x_list_html_rows  = [(self.generate_html_rows(x_html_cells, x_tag_tr, x_row)) for x_html_cells, x_tag_tr, x_row in x_list_html_cells]
 
         # separate header and body again for the result {a_table_tag["id"]}

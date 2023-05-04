@@ -26,7 +26,7 @@ from   dataclasses import dataclass
 from   pathlib     import Path
 from   importlib   import import_module
 import sys
-from   lark        import Transformer
+from   lark        import Lark, Transformer
 import json
 from   table       import TTable
 from   typing      import Any, Callable
@@ -116,6 +116,25 @@ class TServiceCompiler(Transformer):
         x_str = '.'.join(item)
         return f'{{{x_str}}}'
 
+    def update_item(self, item):
+        x_key, x_value = item
+        return {x_key: x_value}
+
+    def list_updates(self, item):
+        x_result = dict()
+        for x in item:
+            x_result.update(x)
+        return x_result
+
+    def update_section(self, item):
+        x_args         = item[0]
+        x_update_descr = dict()
+        if self.m_tag.has_attr('data-eezz-json'):
+            x_update_descr = json.loads(self.m_tag['data-eezz-json'])
+        x_update_descr.update({'update': x_args})
+        self.m_tag['data-eezz-json'] = json.dumps(x_update_descr)
+        return x_update_descr
+
     def assignment(self, item):
         x_key, x_value = item
         return {x_key: x_value}
@@ -139,14 +158,22 @@ class TServiceCompiler(Transformer):
 
     def funct_assignment(self, item):
         x_function, x_args = item[0].children
-        x_function_descr   = {'function': x_function, 'args': x_args, 'id': self.m_id}
-        self.m_tag['onselect'] = 'eezy_click(event, this)'
+        x_function_descr   = dict()
+        if self.m_tag.has_attr('data-eezz-json'):
+            x_function_descr = json.loads(self.m_tag['data-eezz-json'])
+
+        x_function_descr.update({'function': x_function, 'args': x_args, 'id': self.m_id})
+        self.m_tag['onclick'] = 'eezy_click(event, this)'
         self.m_tag['data-eezz-json'] = json.dumps(x_function_descr)
         return x_function_descr
 
     def table_assignment(self, item):
         x_function, x_args = item[0].children
-        x_function_descr   = {'function': x_function, 'args': x_args}
+        x_function_descr   = dict()
+        if self.m_tag.has_attr('data-eezz-json'):
+            x_function_descr = json.loads(self.m_tag['data-eezz-json'])
+
+        x_function_descr.update({'function': x_function, 'args': x_args})
         self.m_tag['data-eezz-json'] = json.dumps(x_function_descr)
 
         TService().assign_object(self.m_id, x_function, x_args, self.m_tag)
@@ -159,3 +186,10 @@ if __name__ == '__main__':
     xx_object, xx_method, xx_tag = xx_sys.get_method("1", 'print')
     # xx_method()
     xx_object.print()
+
+    g_parser = Lark.open(str(Path(TService().resource_path) / 'eezz.lark'))
+    g_syntax_tree = g_parser.parse('update: a=b, c=d, assign: a.b.c(path=x)')
+    g_tag         = Tag(name='text')
+    g_transformer = TServiceCompiler(g_tag, '1000')
+    g_list_json = g_transformer.transform(g_syntax_tree)
+    pass

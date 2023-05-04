@@ -24,10 +24,10 @@ window.onload = eezz_connect();
 
 // Open and controlling the WEB socket
 function eezz_connect() {
-    alert('on connect');
+    console.log('connect websocket ...');
 	g_eezz_web_socket        = new WebSocket(g_eezz_socket_addr);
     g_eezz_web_socket.onopen = function() {
-        alert('on open...');
+        console.log('on open websocket...');
         window.console.log("open web socket ...");
         var x_body    = document.body;
         var x_json    = {"initialize": x_body.innerHTML, "args": g_eezz_arguments};
@@ -36,16 +36,13 @@ function eezz_connect() {
     
     /* Error handling: Reopen connection */
     g_eezz_web_socket.onerror = function(a_error) {
-        alert('on error' + a_error);
+        console.log('error on websocket ...');
         window.console.error(a_error);
     }
 
     /* Wait for the application and update the document          */
     g_eezz_web_socket.onmessage = function(a_event) {
-       alert('onmessage');
-       console.log('event  ' + a_event.data);
-       var x_json = JSON.parse(a_event.data)
-
+        var x_json = JSON.parse(a_event.data)
         if (x_json.update) {
            console.log('update  ');
             var x_array_descr = x_json.update;
@@ -59,35 +56,56 @@ function eezz_connect() {
                         eezz_format_update(x_elem);
                     };
                 } catch(err) {
-                }
-            }
-        }
-    }
+                    console.log("error " + err);
+                }}}}
 }
 
 // Dynamic update: The inner-HTML of the element is calculated by the server
 // The result is send via WEB socket as json = {tag-name: html, ...}
 function dynamic_update(a_element, a_json, a_attrs) {
     for (var x in a_json) {
-        console.log('update element ' + x);
-        var x_structure;
         if (x == '.') {
-            x_structure = a_element
+            a_element.innerHTML = a_json[x];
         }
         else {
             var x_list  = a_element.getElementsByTagName(x);
-            x_structure = x_list[0];
+            x_list[0].innerHTML =  a_json[x];
         }
-        x_structure.innerHTML = a_json[x];
     }
 }
 
-function eezyClick(aEvent, aElement) {
-    var x_post = true;
-    var x_json = JSON.parse(aElement.getAttribute('data-eezz-json'));
+// Function collects all eezz events from page using WEB-socket to
+// send a request to the server
+function eezy_click(aEvent, aElement) {
+    var x_post     = true;
+    var x_response = "";
+    var x_json     = JSON.parse(aElement.getAttribute('data-eezz-json'));
 
-    if (x_post) {
-        var x_response = JSON.stringify(x_json);
-        g_eezz_web_socket.send(x_response);
+    if (!x_post) {
+        return;
     }
+    // Generated elements: Return without modifications
+    if (aElement.hasAttribute('data-eezz-template')) {
+        x_response = JSON.stringify({'event': x_json});
+        g_eezz_web_socket.send(x_response);
+        return;
+    }
+
+    // User form elements: Collect the input data of this page.
+    // The syntax for collection is as follows
+    // function( key = "id-of-element"."attribute-of-element", ... )
+    var x_args = x_json.args
+    for (x_key in x_args) {
+        var x_split   = x_args.x_key.split('.');
+        if (x_split.length != 2) {
+            continue;
+        }
+        var x_element = document.getElementById(x_split[0]);
+        if (x_element == null) {
+            continue;
+        }
+        x_args.x_key  = x_element.getAttribute(x_split[1]);
+    }
+    x_response = JSON.stringify({'event': x_json});
+    g_eezz_web_socket.send(x_response);
 }

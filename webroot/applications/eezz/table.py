@@ -91,25 +91,29 @@ class TTableRow:
     type:   str    = 'body'
     attrs:  dict   = None
 
+    def __post_init__(self):
+        if self.attrs:
+            for x, y in self.attrs.items():
+                setattr(self, x, y)
+
+
 @dataclass(kw_only=True)
 class TTable( collections.UserList ):
     """ The table is derived from Userlist to enable sort and list management """
     column_names:  List[str]
     title:   str = 'Table'
     attrs:   dict = None
-    visible_items: int = 20
-    m_current_pos: int = 0
-    m_column_descr:  List[TTableColumn] = None
-    selected_row:  TTableRow = None
-    header_row:    TTableRow = None
+    visible_items:  int = 20
+    m_current_pos:  int = 0
+    m_column_descr: List[TTableColumn] = None
+    selected_row:   TTableRow = None
+    header_row:     TTableRow = None
 
     def __post_init__(self):
         super().__init__()
-        self.m_column_descr = [TTableColumn(index=x_inx, header=x_str, width=len(x_str), sort=TSort.NONE)
-                               for x_inx, x_str in enumerate(self.column_names)]
-
-        x_cells = [TTableCell(value=x_str, index=x_inx, width=len(x_str)) for x_inx, x_str in enumerate(self.column_names)]
-        self.header_row = TTableRow(index=0, cells=x_cells, type='header')
+        self.m_column_descr = [TTableColumn(index=x_inx, header=x_str, width=len(x_str), sort=TSort.NONE) for x_inx, x_str in enumerate(self.column_names)]
+        x_cells             = [TTableCell(value=x_str, index=x_inx, width=len(x_str)) for x_inx, x_str in enumerate(self.column_names)]
+        self.header_row     = TTableRow(index=0, cells=x_cells, type='header')
 
     def append(self, table_row: list, attrs: dict = None, row_type: str = 'body') -> None:
         """ Append a row into the table
@@ -147,9 +151,9 @@ class TTable( collections.UserList ):
             return self.selected_row.child
         return None
 
-    def select_row(self, row_id: int) -> TTableRow | None:
+    def do_select(self, index: int) -> TTableRow | None:
         for x_row in self.data:
-            if x_row.index == row_id:
+            if x_row.index == index:
                 self.selected_row = x_row
                 return x_row
         return None
@@ -180,7 +184,7 @@ class TTable( collections.UserList ):
             self.m_column_descr[x_inx].sort = TSort.DESCENDING
         super().sort(key=lambda x_row: x_row.cells[x_inx].value, reverse=x_reverse)
 
-    def print(self):
+    def print(self) -> None:
         """ Print ASCII formatted table """
         x_format_type = {'int':      lambda x_size, x_val: ' {{:>{}}} '.format(x_size).format(x_val),
                          'str':      lambda x_size, x_val: ' {{:<{}}} '.format(x_size).format(x_val),
@@ -204,11 +208,13 @@ class TTable( collections.UserList ):
 if __name__ == '__main__':
     a_path  = Path.cwd()
     a_table = TTable(column_names=['File', 'Size', 'Access'])
-
     for xx in a_path.iterdir():
         x_stat = os.stat(xx.name)
         x_time = datetime.fromtimestamp(x_stat.st_atime, tz=timezone.utc)
-        a_table.append([str(xx.name), x_stat.st_size, x_time], attrs={'is_dir': xx.is_dir()})
+        a_table.append([str(xx.name), x_stat.st_size, x_time], attrs={'path': xx})
+
+    a_table.do_select(3)
+    print(a_table.selected_row.path)
 
     a_table.navigate(TNavigation.NEXT)
     a_table.do_sort(1)
