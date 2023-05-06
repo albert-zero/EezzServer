@@ -7,6 +7,7 @@
     Copyright (C) 2023  Albert Zedlitz
 """
 import json
+import threading
 import uuid
 import copy
 import re
@@ -28,7 +29,7 @@ class THttpAgent(TWebSocketAgent):
 
     def handle_request(self, request_data: dict) -> str:
         """ Handle WEB socket requests """
-        x_updates = list()
+        x_updates  = list()
         if 'initialize' in request_data:
             x_soup   = BeautifulSoup(request_data['initialize'], 'html.parser', multi_valued_attributes=None)
             x_updates.extend([self.generate_html_table(x) for x in  x_soup.css.select('table[data-eezz-compiled]')])
@@ -65,7 +66,8 @@ class THttpAgent(TWebSocketAgent):
 
     def handle_download(self, description: str, raw_data: Any) -> str:
         """ Handle file downloads """
-        return ""
+        with self.m_lock:
+            return ""
 
     def do_get(self, a_resource: Path | str) -> str:
         """ Response to an HTML GET command
@@ -131,7 +133,7 @@ class THttpAgent(TWebSocketAgent):
                 x['data-eezz-compiled'] = "ok"
                 if x.has_attr('data-eezz-template') and x['data-eezz-template'] == 'websocket':
                     x_path      = Path(x_service.resource_path / 'websocket.js')
-                    x_ws_descr  = """var g_eezz_socket_addr = "ws://{host}:{port}";\n """.format(host=TService().host_name, port=TService().websocket_addr, args='')
+                    x_ws_descr  = """var g_eezz_socket_addr = "ws://{host}:{port}";\n """.format(host=TService().host, port=TService().websocket_addr, args='')
                     x_ws_descr += """var g_eezz_arguments   = "{args}";\n """.format(args='')
                     with x_path.open('r') as f:
                         x_ws_descr += f.read()

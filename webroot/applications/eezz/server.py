@@ -24,6 +24,7 @@
 import os
 import http.server
 import http.cookies
+import sys
 from   urllib.parse   import urlparse
 from   urllib.parse   import parse_qs
 from   optparse       import OptionParser
@@ -31,8 +32,9 @@ from   websocket      import TWebSocket
 from   pathlib        import Path
 from   http_agent     import THttpAgent
 from   service        import TService
-import asyncio
-from threading import Thread
+from   threading      import Thread
+import time
+
 
 class TWebServer(http.server.HTTPServer):
     """ WEB Server encapsulate the WEB socket implementation """
@@ -42,7 +44,6 @@ class TWebServer(http.server.HTTPServer):
         self.m_web_addr    = (a_server_address[0], int(a_web_socket))
         self.m_web_socket  = TWebSocket(self.m_web_addr, THttpAgent)
         self.m_web_socket.start()
-
         super().__init__(a_server_address, a_http_handler)
 
     def shutdown(self):
@@ -68,9 +69,6 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
         """ handle POST request """
         self.handle_request()
 
-    def shutdown(self):
-        self.m_server.shutdown()
-
     def handle_request(self):
         """ handle GET and POST requests """
         x_cookie = http.cookies.SimpleCookie()
@@ -85,9 +83,11 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
 
         if self.m_client[0] in ('localhost', '127.0.0.1'):
             pass
+
         if x_query_path == '/shutdown':
-            t = Thread(target=self.m_server.shutdown, args=[])
-            t.start()
+            self.send_response(404)
+            self.end_headers()
+            return;
 
         x_resource = TService().root_path / f'public/.{x_query_path}'
         if x_resource.is_dir():
@@ -96,6 +96,7 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
         if not x_resource.exists():
             self.send_response(404)
             self.end_headers()
+            return;
 
         if x_resource.suffix in '.html':
             x_result = self.m_http_agent.do_get(x_resource)
@@ -109,7 +110,7 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             with x_resource.open('rb') as f:
                 self.wfile.write(f.read())
-        elif x_resource.suffix in ('.css'):
+        elif x_resource.suffix in '.css':
             self.send_response(200)
             self.send_header('content-type', 'text/css')
             self.end_headers()
@@ -133,7 +134,7 @@ if __name__ == "__main__":
     x_opt_parser.add_option("-x", "--websocket", dest="web_socket", default="8100",      help="Web-Socket Port",  type="int")
     
     (x_options, x_args) = x_opt_parser.parse_args()
-    x_service = TService(root_path = Path(x_options.web_root), websocket_addr=x_options.web_socket)
+    x_service = TService(root_path=Path(x_options.web_root), host=x_options.http_host, websocket_addr=x_options.web_socket)
 
     if x_service.public_path.is_dir():
         os.chdir(x_service.public_path)
@@ -147,5 +148,3 @@ if __name__ == "__main__":
     print(f"serving {x_options.http_host} at port {x_options.http_port} ...")
     x_httpd.serve_forever()
     print('shutdown')
-
-    

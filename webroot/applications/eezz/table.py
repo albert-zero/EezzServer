@@ -39,6 +39,7 @@ from   typing      import List, Callable
 from   enum        import Enum
 from   pathlib     import Path
 from   datetime    import datetime, timezone
+from   threading   import Condition
 
 
 class TNavigation(Enum):
@@ -48,6 +49,7 @@ class TNavigation(Enum):
     PREV = 2
     TOP =  3
     LAST = 4
+
 
 class TSort(Enum):
     """ Sorting control enum to define sort on columns """
@@ -65,6 +67,7 @@ class TTableCell:
     type:   str  = 'str'
     attrs:  dict = None
 
+
 @dataclass(kw_only=True)
 class TTableColumn:
     """ Summarize the cell properties in a column
@@ -80,6 +83,7 @@ class TTableColumn:
 
 # forward declaration
 TTable = typing.NewType('TTable', None)
+
 
 @dataclass(kw_only=True)
 class TTableRow:
@@ -101,8 +105,9 @@ class TTableRow:
 class TTable( collections.UserList ):
     """ The table is derived from Userlist to enable sort and list management """
     column_names:  List[str]
-    title:   str = 'Table'
-    attrs:   dict = None
+    title:          str       = 'Table'
+    attrs:          dict      = None
+    condition:      Condition = None
     visible_items:  int = 20
     m_current_pos:  int = 0
     m_column_descr: List[TTableColumn] = None

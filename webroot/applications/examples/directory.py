@@ -1,18 +1,19 @@
 import sys
 import os
+from   pathlib   import Path
+from   datetime  import datetime, timezone
+from   threading import Condition
 
 sys.path.append('../eezz')
-from table    import TTable
-from pathlib  import Path
-from datetime import datetime, timezone
+from table import TTable
 
 
 class TDirView(TTable):
     """ Example class """
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, condition: Condition = None):
         # noinspection PyArgumentList
-        super().__init__(column_names=['File', 'Size', 'Access Time'], title='Directory')
+        super().__init__(column_names=['File', 'Size', 'Access Time'], title='Directory', condition=condition)
 
         a_path = Path(path)
         self.table_title = 'Directory'
@@ -25,9 +26,9 @@ class TDirView(TTable):
 
 
 class TDirPng(TTable):
-    def __init__(self, path: str):
+    def __init__(self, path: str, condition: Condition = None):
         # noinspection PyArgumentList
-        super().__init__(column_names=['File', 'Size', 'Access Time'], title='DirPng')
+        super().__init__(column_names=['File', 'Size', 'Access Time'], title='DirPng', condition=condition)
 
         a_path = Path(path)
         self.table_title = 'Directory'

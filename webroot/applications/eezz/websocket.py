@@ -24,6 +24,7 @@ Description:
  
 """
 from   abc import abstractmethod
+from   threading import Condition
 import io
 import struct
 import socket
@@ -34,7 +35,7 @@ import select
 import json
 import threading
 from enum   import Enum
-from typing import Any
+from typing import Any, Callable
 
 
 class TWebSocketAgent:
@@ -69,15 +70,23 @@ class TWebSocketException(Exception):
 class TWebSocketClient:
     """ Implements a WEB socket service thread """
     def __init__(self, a_client_addr: tuple, a_web_addr: int, a_agent: type[TWebSocketAgent]):
-        self.m_headers  = None
-        self.m_socket   = a_client_addr[0]
-        self.m_address  = a_web_addr
-        self.m_cnt      = 0
-        self.m_buffer   = None
-        self.m_protocol = str()
+        self.m_headers      = None
+        self.m_socket       = a_client_addr[0]
+        self.m_address      = a_web_addr
+        self.m_cnt          = 0
+        self.m_buffer       = None
+        self.m_protocol     = str()
         self.m_agent_class  = a_agent
         self.m_agent_client = None
+        self.m_condition    = Condition()
+        self.m_async        = TWebAsyncManager(self.handle_async_request, self.m_condition)
+        self.m_async_req    = list()
+
         self.upgrade()
+        self.m_async.start()
+
+    def shutdown(self):
+        self.m_async.shutdown()
 
     def upgrade(self):
         """ Upgrade HTTP connection to WEB socket """
@@ -91,6 +100,11 @@ class TWebSocketClient:
         self.m_agent_client = self.m_agent_class()
         self.m_buffer = bytearray(65536 * 2)
 
+    def handle_async_request(self):
+        for x in self.m_async_req:
+            x_response = self.m_agent_client.handle_request(x)
+            self.write_frame(x_response.encode('utf-8'))
+
     def handle_request(self) -> None:
         """ Receives an request and send a response """
         x_json_str = self.read_websocket()
@@ -99,6 +113,9 @@ class TWebSocketClient:
         if 'file' in x_json_obj:
             x_byte_stream = self.read_websocket()
             x_response    = self.m_agent_client.handle_download(x_json_obj, x_byte_stream)
+        elif 'async' in x_json_obj:
+            self.m_async_req.append(x_json_obj)
+            return
         else:
             x_response    = self.m_agent_client.handle_request(x_json_obj)
         self.write_frame(x_response.encode('utf-8'))
@@ -274,6 +291,8 @@ class TWebSocket(threading.Thread):
         self.m_running = False
         for x_key, x_val in self.m_clients.items():
             x_key.close()
+        self.m_web_socket.close()
+        pass
 
     def run(self):
         """ Wait for incoming requests"""
@@ -307,10 +326,35 @@ class TWebSocket(threading.Thread):
                     self.m_clients[x_clt_addr[0]] = TWebSocketClient(x_clt_addr, self.m_web_addr, self.m_agent_class)
                     x_read_list.append(x_clt_addr[0])
                 else:
+                    x_client: TWebSocketClient = self.m_clients.get(x_socket)
                     try:
-                        x_client: TWebSocketClient = self.m_clients.get(x_socket)
                         x_client.handle_request()
                     except (TWebSocketException, ConnectionResetError, ConnectionAbortedError) as aEx:
+                        x_client.shutdown()
                         x_socket.close()
                         x_read_list.remove(x_socket)
                         self.m_clients.pop(x_socket)
+
+
+class TWebAsyncManager(threading.Thread):
+    def __init__(self, target: Callable, condition: threading.Condition):
+        self.m_target  = target
+        self.m_cv      = condition
+        self.m_running = True
+
+        super().__init__()
+
+    def shutdown(self):
+        with self.m_cv:
+            self.m_running = False
+            self.m_cv.notify_all()
+
+    def run(self):
+        while self.m_running:
+            self.m_target()
+            with self.m_cv:
+                self.m_cv.wait()
+
+
+
+

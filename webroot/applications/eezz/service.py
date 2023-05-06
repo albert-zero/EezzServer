@@ -30,6 +30,7 @@ from   lark        import Lark, Transformer
 import json
 from   table       import TTable
 from   typing      import Any, Callable
+from   threading   import Condition
 
 
 def singleton(a_class):
@@ -51,9 +52,10 @@ class TService:
     application_path: Path = None
     public_path:      Path = None
     resource_path:    Path = None
-    host_name:        str  = 'localhost'
+    host:             str  = 'localhost'
     websocket_addr:   int  = 8100
     global_objects:   dict = None
+    condition:        Condition = None
 
     def __post_init__(self):
         if not self.root_path:
@@ -61,6 +63,7 @@ class TService:
         if isinstance(self.root_path, str):
             self.root_path = Path(self.root_path)
 
+        self.condition        = Condition()
         self.resource_path    = self.root_path / 'resources'
         self.public_path      = self.root_path / 'public'
         self.application_path = self.root_path / 'applications'
@@ -75,6 +78,7 @@ class TService:
             sys.path.append(str(x_path))
 
         try:
+            attrs.update({'condition': self.condition})
             x_module = import_module(y)
             x_class  = getattr(x_module, z)
             x_object = x_class(**attrs)
