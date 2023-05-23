@@ -9,9 +9,7 @@
         // callback used to format datetime
         function eezz_format_update(element) {
             var x_list = document.querySelectorAll("[timestamp]");
-            console.log("format update..." + x_list.length);
             for (var i = 0; i < x_list.length; i++) {
-                console.log(x_list[i].getAttribute("timestamp"));
                 x_date = new Date(parseFloat(x_list[i].getAttribute("timestamp")) * 1000);
                 x_list[i].innerHTML = x_date.toLocaleString();
             }

@@ -28,9 +28,13 @@ function eezz_connect() {
 	g_eezz_web_socket        = new WebSocket(g_eezz_socket_addr);
     g_eezz_web_socket.onopen = function() {
         console.log('on open websocket...');
-        window.console.log("open web socket ...");
+        var x_title   = "document";
+        var x_title_tags = document.getElementsByTagName('title');
+        if (x_title_tags.length > 0) {
+            x_title   = x_title_tags[0].innerHTML;
+        }
         var x_body    = document.body;
-        var x_json    = {"initialize": x_body.innerHTML, "args": g_eezz_arguments};
+        var x_json    = {"initialize": x_body.innerHTML, "args": g_eezz_arguments, 'title': x_title};
         g_eezz_web_socket.send(JSON.stringify(x_json));
     }
     

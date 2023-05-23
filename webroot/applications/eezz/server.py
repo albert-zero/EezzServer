@@ -24,7 +24,6 @@
 import os
 import http.server
 import http.cookies
-import sys
 from   urllib.parse   import urlparse
 from   urllib.parse   import parse_qs
 from   optparse       import OptionParser
@@ -34,6 +33,7 @@ from   http_agent     import THttpAgent
 from   service        import TService
 from   threading      import Thread
 import time
+import logging
 
 
 class TWebServer(http.server.HTTPServer):
@@ -56,6 +56,7 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, request, client_address, server):
         self.m_client       = client_address
         self.m_server       = server
+        self.m_request      = request
         self.server_version = 'eezzyServer/2.0'
         self.m_http_agent   = THttpAgent()
         super().__init__(request, client_address, server)
@@ -68,6 +69,9 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         """ handle POST request """
         self.handle_request()
+
+    def shutdown(self, args: int = 0):
+        self.m_server.shutdown()
 
     def handle_request(self):
         """ handle GET and POST requests """
@@ -87,7 +91,11 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
         if x_query_path == '/shutdown':
             self.send_response(404)
             self.end_headers()
-            return;
+            xxx = TShutdownServer(self.shutdown)
+            xxx.start()
+            xxx = TShutdownServer(os._exit)
+            xxx.start()
+            return
 
         x_resource = TService().root_path / f'public/.{x_query_path}'
         if x_resource.is_dir():
@@ -99,7 +107,7 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
             return;
 
         if x_resource.suffix in '.html':
-            x_result = self.m_http_agent.do_get(x_resource)
+            x_result = self.m_http_agent.do_get(x_resource, x_query)
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.end_headers()
@@ -118,6 +126,17 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(f.read())
 
 
+class TShutdownServer(Thread):
+    def __init__(self, target):
+        super().__init__()
+        self.target = target
+
+    def run(self):
+        time.sleep(0)
+        self.target(0)
+        pass
+
+
 if __name__ == "__main__":
     print(""" 
         EezzServer  Copyright (C) 2015  Albert Zedlitz
@@ -128,23 +147,26 @@ if __name__ == "__main__":
 
     # Parse command line options
     x_opt_parser = OptionParser()
-    x_opt_parser.add_option("-d", "--host",      dest="http_host",  default="localhost", help="HTTP Hostname")
-    x_opt_parser.add_option("-p", "--port",      dest="http_port",  default="8000",      help="HTTP Port")
-    x_opt_parser.add_option("-w", "--webroot",   dest="web_root",   default="webroot",   help="Web-Root")
-    x_opt_parser.add_option("-x", "--websocket", dest="web_socket", default="8100",      help="Web-Socket Port",  type="int")
-    
+    x_opt_parser.add_option("-d", "--host",      dest="http_host",  default="localhost", help="HTTP Hostname (for example localhost)")
+    x_opt_parser.add_option("-p", "--port",      dest="http_port",  default="8000",      help="HTTP Port (default 8000")
+    x_opt_parser.add_option("-w", "--webroot",   dest="web_root",   default="webroot",   help="Web-Root (path to webroot directory)")
+    x_opt_parser.add_option("-x", "--websocket", dest="web_socket", default="8100",      help="Web-Socket Port (default 8100)",  type="int")
+    x_opt_parser.add_option("-t", "--translate", dest="translate",  action="store_true", help="Optional creation of POT file")
+
     (x_options, x_args) = x_opt_parser.parse_args()
-    x_service = TService(root_path=Path(x_options.web_root), host=x_options.http_host, websocket_addr=x_options.web_socket)
+    x_service = TService(root_path=Path(x_options.web_root), host=x_options.http_host, websocket_addr=x_options.web_socket, translate=x_options.translate)
 
     if x_service.public_path.is_dir():
         os.chdir(x_service.public_path)
     else:
-        print('webroot not found: {}'.format(x_service.root_path))
-        print(x_opt_parser.get_usage())
+        x_opt_parser.print_help()
+        logging.critical(f'webroot not found. Given path "{x_service.root_path}"\n'
+                         f'terminating')
         exit(0)
 
-    # Start the HTTP server
     x_httpd   = TWebServer((x_options.http_host, int(x_options.http_port)), THttpHandler, x_options.web_socket)
-    print(f"serving {x_options.http_host} at port {x_options.http_port} ...")
+    logging.info(f"serving {x_options.http_host} at port {x_options.http_port} ...")
+
     x_httpd.serve_forever()
-    print('shutdown')
+    logging.info('shutdown')
+    os._exit(os.EX_OK)

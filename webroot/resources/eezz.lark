@@ -1,10 +1,11 @@
 ?start            : list_statements
 
 ?list_statements  : [ statement  ("," statement  )* ]
-?statement        : "event"   ":" function_call             -> funct_assignment
-                  | "assign"  ":" function_call             -> table_assignment
-                  | "update"  ":" list_updates              -> update_section
-                  | string    ":" string                    -> template_section
+?statement        : "event"     ":" function_call             -> funct_assignment
+                  | "assign"    ":" function_call             -> table_assignment
+                  | "update"    ":" list_updates              -> update_section
+                  | "async"     ":" function_call             -> async_section
+                  | string      ":" string                    -> template_section
 
 list_updates      : [ update_item  ("," update_item  )* ]
 update_item       : qualified_string "=" qualified_string
@@ -29,4 +30,5 @@ string            : CNAME                                   -> simple_str
 %import common.SIGNED_NUMBER
 %import common.WS
 %ignore WS
+
 

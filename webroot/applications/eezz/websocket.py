@@ -79,7 +79,7 @@ class TWebSocketClient:
         self.m_agent_class  = a_agent
         self.m_agent_client = None
         self.m_condition    = Condition()
-        self.m_async        = TWebAsyncManager(self.handle_async_request, self.m_condition)
+        self.m_async        = TAsyncManager(self.handle_async_request, self.m_condition)
         self.m_async_req    = list()
 
         self.upgrade()
@@ -113,11 +113,11 @@ class TWebSocketClient:
         if 'file' in x_json_obj:
             x_byte_stream = self.read_websocket()
             x_response    = self.m_agent_client.handle_download(x_json_obj, x_byte_stream)
-        elif 'async' in x_json_obj:
-            self.m_async_req.append(x_json_obj)
-            return
         else:
             x_response    = self.m_agent_client.handle_request(x_json_obj)
+            if 'initialize' in x_json_obj and 'async-call' in x_json_obj['initialize']:
+                self.m_async_req = x_json_obj['initialize']['async-calls']
+
         self.write_frame(x_response.encode('utf-8'))
 
     def read_websocket(self) -> bytes:
@@ -238,10 +238,10 @@ class TWebSocketClient:
         x_masked      = 0x0
 
         if a_mask_vector and len(a_mask_vector) == 4:
-            x_masked = 1 << 7
+            x_masked  = 1 << 7
 
         x_bytes[x_position] = a_final | a_opcode
-        x_position         += 1
+        x_position   += 1
 
         if x_payload_len > 126:
             if x_payload_len < 0xffff:
@@ -268,7 +268,6 @@ class TWebSocketClient:
 
         if x_masked != 0:
             x_masked = bytearray(x_payload_len)
-
             for i in range(x_payload_len):
                 x_masked[i] = a_data[i] ^ a_mask_vector[i % 4]
             self.m_socket.send(x_masked)
@@ -336,20 +335,23 @@ class TWebSocket(threading.Thread):
                         self.m_clients.pop(x_socket)
 
 
-class TWebAsyncManager(threading.Thread):
+class TAsyncManager(threading.Thread):
+    """ The TAsyncManger executes the given target, which is a list of
+    function calls and update requests """
     def __init__(self, target: Callable, condition: threading.Condition):
         self.m_target  = target
         self.m_cv      = condition
         self.m_running = True
-
         super().__init__()
 
     def shutdown(self):
+        """ shutdown request """
         with self.m_cv:
             self.m_running = False
             self.m_cv.notify_all()
 
     def run(self):
+        """ Run the target if notified """
         while self.m_running:
             self.m_target()
             with self.m_cv:

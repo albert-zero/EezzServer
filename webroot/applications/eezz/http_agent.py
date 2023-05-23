@@ -7,7 +7,7 @@
     Copyright (C) 2023  Albert Zedlitz
 """
 import json
-import threading
+import logging
 import uuid
 import copy
 import re
@@ -18,8 +18,8 @@ from bs4       import Tag, BeautifulSoup, NavigableString
 from itertools import product, chain, filterfalse
 from table     import TTable, TTableCell, TTableRow
 from websocket import TWebSocketAgent
-from service   import TService, TServiceCompiler
-from lark      import Lark, UnexpectedCharacters
+from service   import TService, TServiceCompiler, TTranslate
+from lark      import Lark, UnexpectedCharacters, Tree
 
 
 class THttpAgent(TWebSocketAgent):
@@ -33,12 +33,25 @@ class THttpAgent(TWebSocketAgent):
         if 'initialize' in request_data:
             x_soup   = BeautifulSoup(request_data['initialize'], 'html.parser', multi_valued_attributes=None)
             x_updates.extend([self.generate_html_table(x) for x in  x_soup.css.select('table[data-eezz-compiled]')])
-            x_updates.extend([self.generate_html_grid(x)  for x in  x_soup.css.select('select[data-eezz-compiled], .clzz_grid[data-eezz-compiled]')] )
-            x_result = {'update': x_updates}
+            x_updates.extend([self.generate_html_grid(x)  for x in  x_soup.css.select('select[data-eezz-compiled], .clzz_grid[data-eezz-compiled]')])
+
+            # manage translation if service started with command line option --translate:
+            if TService().translate:
+                x_translate = TTranslate()
+                x_translate.generate_pot(x_soup, request_data['title'])
+
+            # find async function calls
+            x_find   = x_soup.css.select('[data-eezz-json]')
+            x_async  = list()
+            for x_elem in x_find:
+                x_json = json.loads(x_elem['data-eezz-json'])
+                if 'call' in x_json and x_json['call']['type'] == 'async':
+                    x_async.append(x_json)
+            x_result = {'update': x_updates, 'async-calls': x_async}
             return json.dumps(x_result)
         if 'event' in request_data:
             try:
-                x_event = request_data['event']
+                x_event = request_data['event']['call']
                 x_obj, x_method, x_tag  = TService().get_method(x_event['id'], x_event['function'])
                 x_res   = x_method(**x_event['args'])
 
@@ -66,10 +79,9 @@ class THttpAgent(TWebSocketAgent):
 
     def handle_download(self, description: str, raw_data: Any) -> str:
         """ Handle file downloads """
-        with self.m_lock:
-            return ""
+        pass
 
-    def do_get(self, a_resource: Path | str) -> str:
+    def do_get(self, a_resource: Path | str, a_query: dict) -> str:
         """ Response to an HTML GET command
         The agent reads the source, compiles the data-eezz sections and adds the web-socket component
         It returns the enriched document
@@ -108,45 +120,54 @@ class THttpAgent(TWebSocketAgent):
             self.compile_data(x_parser, x_chrom.css.select('[data-eezz]'), x_chrom['id'])
 
         # Compiling the reset of the document
-        self.compile_data(x_parser, x_soup.css.select('[data-eezz]'), '')
+        self.compile_data(x_parser, x_soup.css.select('[data-eezz]'), '', a_query)
         return x_soup.prettify()
 
-    def compile_data(self, a_parser: Lark, a_tag_list: list, a_id: str) -> None:
+    def compile_data(self, a_parser: Lark, a_tag_list: list, a_id: str, a_query: dict = None) -> None:
         """ Compile data-eezz-json to data-eezz-compile,
         create tag attributes and generate tag-id to manage incoming requests """
         x_service = TService()
-        for x in a_tag_list:
+        for x_tag in a_tag_list:
             x_id   = a_id
-            x_data = x.attrs.pop('data-eezz')
+            x_data = x_tag.attrs.pop('data-eezz')
             try:
                 if not x_data:
                     return
                 if not x_id:
-                    if x.has_attr('id'):
-                        x_id = x.attrs['id']
-                # else:
-                #    return
+                    if x_tag.has_attr('id'):
+                        x_id = x_tag.attrs['id']
 
                 x_syntax_tree = a_parser.parse(x_data)
-                x_transformer = TServiceCompiler(x, x_id)
-                x_list_json   = x_transformer.transform(x_syntax_tree)
-                x['data-eezz-compiled'] = "ok"
-                if x.has_attr('data-eezz-template') and x['data-eezz-template'] == 'websocket':
+                x_transformer = TServiceCompiler(x_tag, x_id, a_query)
+                x_tree        = x_transformer.transform(x_syntax_tree)
+                x_json        = dict()
+                x_list_items  = x_tree.children if isinstance(x_tree, Tree) else [x_tree]
+                x_tag['data-eezz-compiled'] = "ok"
+
+                for x_part in x_list_items:
+                    x_part_json = {x_part_key: x_part_val for x_part_key, x_part_val in x_part.items() if x_part_key in ('update', 'call', 'async')}
+                    x_json.update(x_part_json)
+                if x_json:
+                    x_tag['data-eezz-json'] = json.dumps(x_json)
+
+                if x_tag.has_attr('data-eezz-template') and x_tag['data-eezz-template'] == 'websocket':
                     x_path      = Path(x_service.resource_path / 'websocket.js')
                     x_ws_descr  = """var g_eezz_socket_addr = "ws://{host}:{port}";\n """.format(host=TService().host, port=TService().websocket_addr, args='')
                     x_ws_descr += """var g_eezz_arguments   = "{args}";\n """.format(args='')
                     with x_path.open('r') as f:
                         x_ws_descr += f.read()
-                    x.string = x_ws_descr
+                    x_tag.string = x_ws_descr
             except UnexpectedCharacters as ex:
-                x['data-eezz-compiled'] = f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}'
+                x_tag['data-eezz-compiled'] = f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}'
                 print(f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}')
 
     def format_attributes(self, a_key: str, a_value: str, a_fmt_funct: Callable) -> str:
         """ Eval template tag-attributes, diving deep into data-eezz-json """
         if a_key == 'data-eezz-json':
             x_json = json.loads(a_value)
-            x_json.update({'args': {x: a_fmt_funct(y) for x, y in x_json['args'].items()}})
+            if 'call' in x_json:
+                x_args = x_json['call']['args']
+                x_json['call']['args'] = {x_key: a_fmt_funct(x_val) for x_key, x_val in x_args.items()}
             x_fmt_val = json.dumps(x_json)
         else:
             x_fmt_val = a_fmt_funct(a_value)
@@ -175,6 +196,15 @@ class THttpAgent(TWebSocketAgent):
         # x_html_cells = a_html_cells
         x_html_cells = [[copy.deepcopy(x)] if not x.has_attr('data-eezz-compiled') else a_html_cells for x in a_tag.css.select('th,td')]
         x_html_cells = list(chain.from_iterable(x_html_cells))
+        try:
+            for x in x_html_cells:
+                if x.has_attr('reference') and x['reference'] == 'row':
+                    for x_child in x.descendends:
+                        if isinstance(x_child, NavigableString):
+                            x.parent.string = x.format(row=TTableRow)
+        except AttributeError as ex:
+            logging.error(f'Cannot format cell: {ex}')
+
         x_new_tag    = Tag(name=a_tag.name, attrs=x_fmt_attrs)
         for x in x_html_cells:
             x_new_tag.append(x)
