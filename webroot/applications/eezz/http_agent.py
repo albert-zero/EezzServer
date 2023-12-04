@@ -55,6 +55,7 @@ class THttpAgent(TWebSocketAgent):
                 x_obj, x_method, x_tag  = TService().get_method(x_event['id'], x_event['function'])
                 x_res   = x_method(**x_event['args'])
 
+                x_value: str
                 for x_key, x_value in x_event['update'].items():
                     if x_key == 'this.tbody':
                         x_updates.append(self.generate_html_table(x_tag))
@@ -63,7 +64,8 @@ class THttpAgent(TWebSocketAgent):
                     elif x_value.startswith('table.'):
                         x_attr_list = x_key.split('.')
                         x_attr      = '.' if len(x_attr_list) < 2 else '.'.join(x_attr_list[1:])
-                        x_res_v     = f'{{{x_value}}}'.format(table=x_obj)
+                        # noinspection PyStringFormat
+                        x_res_v     = f"{{{x_value}}}".format(table=x_obj)
                         x_res_d     = {'id': x_attr_list[0], 'attrs': {'result': x_res}, 'html': {x_attr: x_res_v}}
                         x_updates.append(x_res_d)
                     elif re.match(r'"\w+"', x_value):
@@ -174,7 +176,8 @@ class THttpAgent(TWebSocketAgent):
         return x_fmt_val
 
     def generate_html_cells(self, a_tag: Tag, a_cell: TTableCell) -> Tag:
-        """ Generate HTML cells """
+        """ Generate HTML cells
+        Input for the lamda is a string and output is formatted according to the TTableCell object """
         x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(cell=a_cell)) for x, y in a_tag.attrs.items()}
         x_new_tag   = copy.deepcopy(a_tag)
         for x in x_new_tag.descendants:
@@ -258,9 +261,10 @@ class THttpAgent(TWebSocketAgent):
     def generate_html_grid_item(self, a_tag: Tag, a_row: TTableRow, a_header: TTableRow) -> Tag:
         """ Generates elements of the same kind, derived from a template and update content
         according the row values """
-        x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(roe=a_row)) for x, y in a_tag.attrs.items()}
+        x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(row=a_row)) for x, y in a_tag.attrs.items()}
         x_fmt_row   = {x: y for x, y in zip(a_header.cells, a_row.cells)}
         x_new_tag   = Tag(name=a_tag.name, attrs=x_fmt_attrs)
+        x_new_tag['eezz-key'] = ''
         x_new_tag.string = a_tag.string.format(**x_fmt_row)
         return x_new_tag
 
@@ -294,3 +298,4 @@ if __name__ == '__main__':
         print(xx_str)
 
     print('done')
+    

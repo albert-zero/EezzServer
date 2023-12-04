@@ -1,15 +1,13 @@
 import sys
 import os
-from   pathlib   import Path
-from   datetime  import datetime, timezone
-from   threading import Condition
-
-sys.path.append('../eezz')
-from table import TTable
+from   pathlib    import Path
+from   datetime   import datetime, timezone
+from   threading  import Condition
+from   webroot.applications.eezz.table import TTable
 
 
 class TDirView(TTable):
-    """ Example class """
+    """ Example class printing directory content """
 
     def __init__(self, path: str, condition: Condition = None):
         # noinspection PyArgumentList
@@ -44,5 +42,5 @@ if __name__ == '__main__':
     xdir = TDirView(path='/home/paul')
     xdir.print()
 
-    xdir = TDirPng(path='/home/paul')
-    xdir.print()
+    #xdir = TDirPng(path='/home/paul')
+    #xdir.print()

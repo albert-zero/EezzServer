@@ -22,6 +22,17 @@
 var g_eezz_web_socket;
 window.onload = eezz_connect();
 
+// User Callback Interface
+class TEEzz {
+    constructor() {
+        this.on_update  = (a_element) => {};
+        this.on_animate = (a_element) => {};
+    }
+}
+
+// Global user interface instance
+eezz = new TEezz();
+
 // Open and controlling the WEB socket
 function eezz_connect() {
     console.log('connect websocket ...');
@@ -56,9 +67,7 @@ function eezz_connect() {
                 dynamic_update(x_elem, x_descr.html, x_descr.attrs);
 
                 try { // call a user defined function to enable formatting for example datetime: query [timestamp]
-                   if (typeof eezz_format_update === 'function') {
-                        eezz_format_update(x_elem);
-                    };
+                   eezz.on_update(x_elem);
                 } catch(err) {
                     console.log("error " + err);
                 }}}}

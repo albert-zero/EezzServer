@@ -105,16 +105,17 @@ class TTableRow:
 class TTable( collections.UserList ):
     """ The table is derived from Userlist to enable sort and list management """
     column_names:  List[str]
-    title:          str       = 'Table'
-    attrs:          dict      = None
-    condition:      Condition = None
-    visible_items:  int = 20
-    m_current_pos:  int = 0
+    title:          str         = 'Table'
+    attrs:          dict        = None
+    condition:      Condition   = None
+    visible_items:  int         = 20
+    m_current_pos:  int         = 0
     m_column_descr: List[TTableColumn] = None
-    selected_row:   TTableRow = None
-    header_row:     TTableRow = None
+    selected_row:   TTableRow   = None
+    header_row:     TTableRow   = None
 
     def __post_init__(self):
+        """ Post init for a data class """
         super().__init__()
         self.m_column_descr = [TTableColumn(index=x_inx, header=x_str, width=len(x_str), sort=TSort.NONE) for x_inx, x_str in enumerate(self.column_names)]
         x_cells             = [TTableCell(value=x_str, index=x_inx, width=len(x_str)) for x_inx, x_str in enumerate(self.column_names)]
