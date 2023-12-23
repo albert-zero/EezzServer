@@ -24,6 +24,7 @@
 import os
 import http.server
 import http.cookies
+from   threading      import Thread
 from   urllib.parse   import urlparse
 from   urllib.parse   import parse_qs
 from   optparse       import OptionParser
@@ -31,7 +32,6 @@ from   websocket      import TWebSocket
 from   pathlib        import Path
 from   http_agent     import THttpAgent
 from   service        import TService
-from   threading      import Thread
 import time
 import logging
 
@@ -86,16 +86,14 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
         x_query_path = x_result.path
 
         if self.m_client[0] in ('localhost', '127.0.0.1'):
-            pass
-
-        if x_query_path == '/shutdown':
-            self.send_response(404)
-            self.end_headers()
-            xxx = TShutdownServer(self.shutdown)
-            xxx.start()
-            xxx = TShutdownServer(os._exit)
-            xxx.start()
-            return
+            if x_query_path == '/system/shutdown':
+                xxx = Thread(target=shutdown_function, args=[self])
+                xxx.start()
+                # self.send_response(404)
+                # self.end_headers()
+                return
+            if x_query_path == '/system/eezzyfree':
+                pass
 
         x_resource = TService().root_path / f'public/.{x_query_path}'
         if x_resource.is_dir():
@@ -104,7 +102,7 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
         if not x_resource.exists():
             self.send_response(404)
             self.end_headers()
-            return;
+            return
 
         if x_resource.suffix in '.html':
             x_result = self.m_http_agent.do_get(x_resource, x_query)
@@ -126,15 +124,10 @@ class THttpHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(f.read())
 
 
-class TShutdownServer(Thread):
-    def __init__(self, target):
-        super().__init__()
-        self.target = target
-
-    def run(self):
-        time.sleep(0)
-        self.target(0)
-        pass
+def shutdown_function(handler: THttpHandler):
+    handler.shutdown(0)
+    time.sleep(2)
+    # os._exit(0)
 
 
 if __name__ == "__main__":
@@ -169,4 +162,4 @@ if __name__ == "__main__":
 
     x_httpd.serve_forever()
     logging.info('shutdown')
-    os._exit(os.EX_OK)
+    exit(os.EX_OK)

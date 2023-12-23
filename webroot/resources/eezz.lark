@@ -4,11 +4,12 @@
 ?statement        : "event"     ":" function_call             -> funct_assignment
                   | "assign"    ":" function_call             -> table_assignment
                   | "update"    ":" list_updates              -> update_section
-                  | "async"     ":" function_call             -> async_section
+                  | "post_init" ":" function_call             -> post_init
                   | string      ":" string                    -> template_section
 
 list_updates      : [ update_item  ("," update_item  )* ]
 update_item       : qualified_string "=" qualified_string
+                  | qualified_string
 
 ?list_arguments   : [ assignment  ("," assignment  )* ]
 ?assignment       : string "=" value_string

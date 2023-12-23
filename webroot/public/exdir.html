@@ -7,7 +7,7 @@
 
     <script>
         // callback used to format datetime
-        function eezz_format_update(element) {
+        eezz.on_update  = (a_element) => {
             var x_list = document.querySelectorAll("[timestamp]");
             for (var i = 0; i < x_list.length; i++) {
                 x_date = new Date(parseFloat(x_list[i].getAttribute("timestamp")) * 1000);
@@ -18,7 +18,7 @@
 </head>
 
 <body>
-    <table data-eezz='assign: examples.directory.TDirPng(path="/home/paul"), name: Directory'>
+    <table id='Directory' data-eezz='assign: examples.directory.TDirPng(path="/home/paul")'>
         <caption data-eezz="template: table">{table.title}</caption>
         <thead>
             <tr data-eezz="template: row, match: header">

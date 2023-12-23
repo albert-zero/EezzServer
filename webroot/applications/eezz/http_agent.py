@@ -11,24 +11,75 @@ import logging
 import uuid
 import copy
 import re
+import mmap
+import base64
+import math
 
 from pathlib   import Path
-from typing    import Any, Callable
+from typing    import Any, Callable, Dict
 from bs4       import Tag, BeautifulSoup, NavigableString
 from itertools import product, chain, filterfalse
 from table     import TTable, TTableCell, TTableRow
 from websocket import TWebSocketAgent
 from service   import TService, TServiceCompiler, TTranslate
 from lark      import Lark, UnexpectedCharacters, Tree
+from Crypto.Hash  import SHA256
+
+
+class TFile:
+    """ Class to be used as handle for file download """
+    def __init__(self, name: str, size: int, chunk_size: int):
+        """  Class handles download of files
+        :param name: Name of the file
+        :param size: Size in bytes on disc
+        :param chunk_size: Chunk of bytes transmitted in one request. Constant ip to the last
+        """
+        self.name        = name
+        self.size        = size
+        self.chunk_size  = chunk_size
+        self.progress    = 0
+        self.transferred = 0
+        self.chunk_count = divmod(size, chunk_size)[0] + 1
+        self.hash_chain  = ['' for x in range(self.chunk_count)]
+
+    def write_chunk(self, raw_data: Any, sequence_nr: int):
+        """ Write constant chunks of raw data to file. The last chunk might be smaller
+        :param raw_data: Raw chunk of data
+        :param sequence_nr: Sequence number, counting the number of chunks and could re-arrange segments
+        """
+        x_hash        = SHA256.new()
+        x_offset      = sequence_nr * self.chunk_size
+        x_chunk_size  = min(self.chunk_size, self.size - x_offset)
+        self.progress = math.floor(100.0 * (x_offset + x_chunk_size) / self.size)
+
+        with open(self.name, "r+b") as x_out:
+            # Accept any chunk any time
+            self.transferred += x_chunk_size
+            x_data_slice      = raw_data[:x_chunk_size]
+            x_memory_map      = mmap.mmap(x_out.fileno(), 0)
+            x_memory_view     = memoryview(x_memory_map)
+            x_memory_slice    = x_memory_view[x_offset: x_offset + x_chunk_size]
+            x_memory_slice[:] = x_data_slice
+
+            x_memory_slice.release()
+            x_memory_view.release()
+            x_memory_map.close()
+
+            x_hash.update(raw_data)
+            self.hash_chain[sequence_nr] = base64.b64encode(x_hash.digest()).decode('utf-8')
 
 
 class THttpAgent(TWebSocketAgent):
     """ Agent handles WEB socket events """
     def __init__(self):
+        self.map_downloads: Dict[str, TFile] = dict()
         super().__init__()
 
     def handle_request(self, request_data: dict) -> str:
-        """ Handle WEB socket requests """
+        """ Handle WEB socket requests
+        :param request_data: The request send by the browser
+        :return: Response, formatted as dict, containing valid HTML for the browser
+        """
         x_updates  = list()
         if 'initialize' in request_data:
             x_soup   = BeautifulSoup(request_data['initialize'], 'html.parser', multi_valued_attributes=None)
@@ -39,15 +90,7 @@ class THttpAgent(TWebSocketAgent):
             if TService().translate:
                 x_translate = TTranslate()
                 x_translate.generate_pot(x_soup, request_data['title'])
-
-            # find async function calls
-            x_find   = x_soup.css.select('[data-eezz-json]')
-            x_async  = list()
-            for x_elem in x_find:
-                x_json = json.loads(x_elem['data-eezz-json'])
-                if 'call' in x_json and x_json['call']['type'] == 'async':
-                    x_async.append(x_json)
-            x_result = {'update': x_updates, 'async-calls': x_async}
+            x_result = {'update': x_updates, 'event': 'init'}
             return json.dumps(x_result)
         if 'event' in request_data:
             try:
@@ -55,7 +98,6 @@ class THttpAgent(TWebSocketAgent):
                 x_obj, x_method, x_tag  = TService().get_method(x_event['id'], x_event['function'])
                 x_res   = x_method(**x_event['args'])
 
-                x_value: str
                 for x_key, x_value in x_event['update'].items():
                     if x_key == 'this.tbody':
                         x_updates.append(self.generate_html_table(x_tag))
@@ -64,8 +106,7 @@ class THttpAgent(TWebSocketAgent):
                     elif x_value.startswith('table.'):
                         x_attr_list = x_key.split('.')
                         x_attr      = '.' if len(x_attr_list) < 2 else '.'.join(x_attr_list[1:])
-                        # noinspection PyStringFormat
-                        x_res_v     = f"{{{x_value}}}".format(table=x_obj)
+                        x_res_v     = str('{' + x_value + '}').format(table=x_obj)
                         x_res_d     = {'id': x_attr_list[0], 'attrs': {'result': x_res}, 'html': {x_attr: x_res_v}}
                         x_updates.append(x_res_d)
                     elif re.match(r'"\w+"', x_value):
@@ -74,19 +115,46 @@ class THttpAgent(TWebSocketAgent):
                         x_res_d     = {'id': x_attr_list[0], 'attrs': {'result': x_res}, 'html': {x_attr: x_value.strip('"')}}
                         x_updates.append(x_res_d)
             except KeyError as ex:
-                print(f'key-error in handle_request: {request_data} ')
+                logging.error(f'key-error in handle_request: {request_data} ')
+                # print(f'key-error in handle_request: {request_data} ')
 
             x_result = {'update': x_updates}
             return json.dumps(x_result)
 
-    def handle_download(self, description: str, raw_data: Any) -> str:
-        """ Handle file downloads """
-        pass
+    def handle_download(self, request_data: dict, raw_data: Any) -> str:
+        """ Handle file downloads: The browser slices the file into chunks and the agent has to
+         re-arrange the stream using the file name and the sequence number
+         :param request_data: The request data are encoded in dictionary format
+         :param raw_data: The rae data chunk to download
+         :return: Progress information to the update destination of the event
+         """
+        x_event  = request_data['file']
+        x_update = dict()
+
+        if x_event['initialize']:
+            self.map_downloads['name'] = TFile(x_event['name'], x_event['chunk_size'])
+
+        x_file   = self.map_downloads['name']
+        if not x_file:
+            x_result = {'message': 'missing initialize call for file download', 'code': 1000}
+            return json.dumps(x_result)
+
+        x_file.write_chunk(raw_data)
+        x_update['progress'] = x_file.progress
+        x_update['file']     = x_file.name
+        x_update['update']   = x_event['update']
+
+        if x_file.progress == 100:
+            del self.map_downloads[x_file.name]
+        return json.dumps(x_update)
 
     def do_get(self, a_resource: Path | str, a_query: dict) -> str:
         """ Response to an HTML GET command
         The agent reads the source, compiles the data-eezz sections and adds the web-socket component
         It returns the enriched document
+        :param a_resource: The path to the HTML document, containing EEZZ extensions
+        :param a_query: The query string of the URL
+        :return: The compiled version of the HTML file
         """
         x_html    = a_resource
         x_service = TService()
@@ -94,8 +162,10 @@ class THttpAgent(TWebSocketAgent):
             with a_resource.open('r', encoding="utf-8") as f:
                 x_html = f.read()
 
-        x_parser = Lark.open(str(Path(x_service.resource_path) / 'eezz.lark'))
-        x_soup   = BeautifulSoup(x_html, 'html.parser', multi_valued_attributes=None)
+        x_parser     = Lark.open(str(Path(x_service.resource_path) / 'eezz.lark'))
+        x_soup       = BeautifulSoup(x_html, 'html.parser', multi_valued_attributes=None)
+
+        # The template table is used to add missing structures as default
         x_templ_path = x_service.resource_path / 'template.html'
         with x_templ_path.open('r') as f:
             x_template = BeautifulSoup(f.read(), 'html.parser', multi_valued_attributes=None)
@@ -127,7 +197,12 @@ class THttpAgent(TWebSocketAgent):
 
     def compile_data(self, a_parser: Lark, a_tag_list: list, a_id: str, a_query: dict = None) -> None:
         """ Compile data-eezz-json to data-eezz-compile,
-        create tag attributes and generate tag-id to manage incoming requests """
+        create tag attributes and generate tag-id to manage incoming requests
+        :param a_parser: The Lark parser to compile EEZZ to json
+        :param a_tag_list: HTML-Tag to compile
+        :param a_id: The ID of the tag to be identified for update
+        :param a_query: The query of the HTML request
+        :return: None """
         x_service = TService()
         for x_tag in a_tag_list:
             x_id   = a_id
@@ -147,8 +222,9 @@ class THttpAgent(TWebSocketAgent):
                 x_tag['data-eezz-compiled'] = "ok"
 
                 for x_part in x_list_items:
-                    x_part_json = {x_part_key: x_part_val for x_part_key, x_part_val in x_part.items() if x_part_key in ('update', 'call', 'async')}
+                    x_part_json = {x_part_key: x_part_val for x_part_key, x_part_val in x_part.items() if x_part_key in ('update', 'call')}
                     x_json.update(x_part_json)
+
                 if x_json:
                     x_tag['data-eezz-json'] = json.dumps(x_json)
 
@@ -164,7 +240,12 @@ class THttpAgent(TWebSocketAgent):
                 print(f'allowed: {ex.allowed} at {ex.pos_in_stream} \n{x_data}')
 
     def format_attributes(self, a_key: str, a_value: str, a_fmt_funct: Callable) -> str:
-        """ Eval template tag-attributes, diving deep into data-eezz-json """
+        """ Eval template tag-attributes, diving deep into data-eezz-json
+        :param a_key: Thw key string to pick the items in a HTML tag
+        :param a_value: The dictionary in string format to be formatted
+        :param a_fmt_funct: The function to be called to format the values
+        :return: The formatted string
+        """
         if a_key == 'data-eezz-json':
             x_json = json.loads(a_value)
             if 'call' in x_json:
@@ -177,7 +258,11 @@ class THttpAgent(TWebSocketAgent):
 
     def generate_html_cells(self, a_tag: Tag, a_cell: TTableCell) -> Tag:
         """ Generate HTML cells
-        Input for the lamda is a string and output is formatted according to the TTableCell object """
+        Input for the lamda is a string and output is formatted according to the TTableCell object
+        :param a_tag: The parent tag to generate the table cells
+        :param a_cell: The template cell to format to HTML
+        :return: The formatted HTML tag
+        """
         x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(cell=a_cell)) for x, y in a_tag.attrs.items()}
         x_new_tag   = copy.deepcopy(a_tag)
         for x in x_new_tag.descendants:
@@ -251,7 +336,7 @@ class THttpAgent(TWebSocketAgent):
 
     def generate_html_grid(self, a_tag: Tag) -> dict:
         """ Besides the table, supported display is grid (via class clzz_grid or select """
-        x_template      = a_tag.css.select('select[data-eezz-compiled], .clzz_grid[data-eezz-compiled]')
+        x_template      = a_tag.css.select('[data-eezz-compiled]')
         x_table         = TService().get_object(a_tag.attrs['id'])
         x_row_viewport  = x_table.get_visible_rows()
         x_table_header  = x_table.get_header_row()
@@ -264,7 +349,6 @@ class THttpAgent(TWebSocketAgent):
         x_fmt_attrs = {x: self.format_attributes(x, y, lambda z: z.format(row=a_row)) for x, y in a_tag.attrs.items()}
         x_fmt_row   = {x: y for x, y in zip(a_header.cells, a_row.cells)}
         x_new_tag   = Tag(name=a_tag.name, attrs=x_fmt_attrs)
-        x_new_tag['eezz-key'] = ''
         x_new_tag.string = a_tag.string.format(**x_fmt_row)
         return x_new_tag
 

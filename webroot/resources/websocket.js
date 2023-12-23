@@ -23,7 +23,7 @@ var g_eezz_web_socket;
 window.onload = eezz_connect();
 
 // User Callback Interface
-class TEEzz {
+class TEezz {
     constructor() {
         this.on_update  = (a_element) => {};
         this.on_animate = (a_element) => {};
@@ -58,6 +58,8 @@ function eezz_connect() {
     /* Wait for the application and update the document          */
     g_eezz_web_socket.onmessage = function(a_event) {
         var x_json = JSON.parse(a_event.data)
+
+        // The main response is an update request
         if (x_json.update) {
            console.log('update  ');
             var x_array_descr = x_json.update;
@@ -66,11 +68,24 @@ function eezz_connect() {
                 var x_elem  = document.getElementById(x_descr.id);
                 dynamic_update(x_elem, x_descr.html, x_descr.attrs);
 
-                try { // call a user defined function to enable formatting for example datetime: query [timestamp]
+                try { // Abstract function to overwrite for user callback
                    eezz.on_update(x_elem);
                 } catch(err) {
                     console.log("error " + err);
-                }}}}
+                }
+            }
+        }
+
+        // The backend might send events. The main event is the init-event, which is the response to the
+        // initialization request. The idea is to put all long lasting methods into this loop, so that the
+        // HTML page is not blocked at the first call.
+        if (x_json.event) {
+            if (x_json.event == 'init') {
+                for (x_element in x_list) {
+                g_eezz_web_socket.send(x_element.getAttribute('data-eezz-init'));
+            }
+        }
+    }
 }
 
 // Dynamic update: The inner-HTML of the element is calculated by the server
@@ -79,17 +94,71 @@ function dynamic_update(a_element, a_json, a_attrs) {
     for (var x in a_json) {
         if (x == '.') {
             a_element.innerHTML = a_json[x];
+            continue;
         }
-        else {
-            var x_list  = a_element.getElementsByTagName(x);
-            x_list[0].innerHTML =  a_json[x];
+        var x_child  = a_element.querySelector(x);
+        if (x_child == null)
+            continue;
+
+        // In a tree node only the tbody will be updated
+        if (a_element,getAttribute('class') == 'clzz_tree_node' && x != 'tbody') {
+            continue;
         }
+        x_child.innerHTML = a_json[x];
     }
+}
+
+// Collapse a tree element
+function tree_collapse(a_node_element) {
+	var x_subtree_state = a_node_element.getAttribute('data-eezz-subtree_state');
+	if (x_subtree_state == 'expanded') {
+    	// Restore the original entry of the tree node
+		var x_subtree_header     = a_node_element.querySelector('thead')
+		a_node_element.innerHTML = x_subtree_header.innerHTML;
+		a_node_element.setAttribute('data-eezz-subtree_state', 'collapsed');
+	}
+}
+
+// Inserts a sub-tree into a tree <TR> element, which is defined a given element id
+// The constrains are: subtree.tagName is table, and it contains a thead and a tbody
+function tree_expand(a_node_id, a_subtree) {
+	// Find tree node by id tag element tr
+	var x_node_element  = document.getElementById(a_node_id);
+    if (x_node_element == null)
+        return;
+
+    // Make sure, that the tree node is collapsed and save the node entry as table header entry
+	tree_collapse(x_node_element);
+	var x_nr_columns   = x_node_element.getElementsByTagName('td').length.toString()
+	var x_subtree_body = a_subtree.querySelector('tbody');
+	if (x_subtree_body == null)
+	    return;
+
+	x_subtree_body.setAttribute('class', 'clzz_tree_node');
+	x_subtree.setAttribute('class', 'clzz_tree_node');
+
+	var x_subtree_header = a_subtree.querySelector('thead');
+	if (x_subtree_header == null)
+	    return;
+
+	x_subtree_header.innerHTML = x_node_element.outerHTML;
+	x_subtree_header.setAttribute('class', 'clzz_tree_node');
+	x_node_element.innerHTML   = '';
+
+    // Create a <td> cell as container:
+    // Add the subtree to this container and the container to <tr> node-element
+	var x_new_cell = document.createElement('td');
+    x_new_cell.setAttribute('class', 'clzz_tree_node');
+    x_new_cell.setAttribute('colspan', x_nr_columns);
+
+    x_new_cell.appendChild(a_subtree)
+    x_node_element.appendChild(x_new_cell)
+    x_node_element.setAttribute('data-eezz-subtree_state', 'expanded');
 }
 
 // Function collects all eezz events from page using WEB-socket to
 // send a request to the server
-function eezy_click(aEvent, aElement) {
+function eezzy_click(aEvent, aElement) {
     var x_post     = true;
     var x_response = "";
     var x_json     = JSON.parse(aElement.getAttribute('data-eezz-json'));
@@ -119,6 +188,6 @@ function eezy_click(aEvent, aElement) {
         }
         x_args.x_key  = x_element.getAttribute(x_split[1]);
     }
-    x_response = JSON.stringify({'event': x_json});
+    x_response = JSON.stringify(x_json);
     g_eezz_web_socket.send(x_response);
 }

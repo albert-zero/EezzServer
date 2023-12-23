@@ -23,8 +23,6 @@ Description:
    https://tools.ietf.org/html/rfc6455
  
 """
-from   abc import abstractmethod
-from   threading import Condition
 import io
 import struct
 import socket
@@ -33,13 +31,17 @@ import hashlib
 import base64
 import select
 import json
-import threading
-from enum   import Enum
-from typing import Any, Callable
+
+from   abc         import abstractmethod
+from   threading   import Thread, Condition, Lock
+from   typing      import Any, Callable, Dict
+from   dataclasses import dataclass
+from   service     import TService
 
 
 class TWebSocketAgent:
-    """ User should implement this class to receive data """
+    """ User has to implement this class to receive data.
+    TWebSocketClient is called with the class type, leaving the TWebSocketClient to generate an instance """
     def __init__(self):
         pass
 
@@ -77,16 +79,13 @@ class TWebSocketClient:
         self.m_buffer       = None
         self.m_protocol     = str()
         self.m_agent_class  = a_agent
-        self.m_agent_client = None
-        self.m_condition    = Condition()
-        self.m_async        = TAsyncManager(self.handle_async_request, self.m_condition)
-        self.m_async_req    = list()
-
-        self.upgrade()
-        self.m_async.start()
+        self.m_agent_client = a_agent()
+        self.m_lock         = Lock()
+        self.m_threads: Dict[Callable, Thread] = {}
 
     def shutdown(self):
-        self.m_async.shutdown()
+        # self.m_async.shutdown()
+        pass
 
     def upgrade(self):
         """ Upgrade HTTP connection to WEB socket """
@@ -97,13 +96,8 @@ class TWebSocketClient:
         x_utf_data = x_bin_data.decode('utf-8')
         x_response = self.gen_handshake(x_utf_data)
         x_nr_bytes = self.m_socket.send(x_response.encode('utf-8'))
-        self.m_agent_client = self.m_agent_class()
+        # self.m_agent_client = self.m_agent_class()
         self.m_buffer = bytearray(65536 * 2)
-
-    def handle_async_request(self):
-        for x in self.m_async_req:
-            x_response = self.m_agent_client.handle_request(x)
-            self.write_frame(x_response.encode('utf-8'))
 
     def handle_request(self) -> None:
         """ Receives an request and send a response """
@@ -112,13 +106,37 @@ class TWebSocketClient:
 
         if 'file' in x_json_obj:
             x_byte_stream = self.read_websocket()
-            x_response    = self.m_agent_client.handle_download(x_json_obj, x_byte_stream)
-        else:
-            x_response    = self.m_agent_client.handle_request(x_json_obj)
-            if 'initialize' in x_json_obj and 'async-call' in x_json_obj['initialize']:
-                self.m_async_req = x_json_obj['initialize']['async-calls']
+            async with self.m_lock:
+                x_response = self.m_agent_client.handle_download(x_json_obj, x_byte_stream)
+                self.write_frame(x_response.encode('utf-8'))
+            return
 
-        self.write_frame(x_response.encode('utf-8'))
+        if 'initialize' in x_json_obj:
+            self.handle_aync_request(request=x_json_obj)
+            return
+
+        if 'call' in x_json_obj:
+            x_request = x_json_obj['call']
+            x_args    = x_request['args']
+            x_name    = x_request['function']
+            x_obj, x_method, x_tag, x_descr = TService().get_method(x_request['id'], x_name)
+            x_thread  = self.m_threads.get(x_method)
+
+            # Wait for this method to terminate before launching a new request
+            if x_thread and x_thread.is_alive():
+                return
+
+            x_descr   = f'{x_descr}.{x_name}'
+            x_thread  = TAsyncHandler(socket_server=self, request=x_json_obj, method=x_method, args=x_args, description=x_descr)
+            x_thread.start()
+            self.m_threads[x_method] = x_thread
+        # - x_response = self.m_agent_client.handle_request(x_json_obj)
+        # - self.write_frame(x_response.encode('utf-8'))
+
+    def handle_aync_request(self, request: dict, result: str = ''):
+        with self.m_lock:
+            x_response = self.m_agent_client.handle_request(request)
+            self.write_frame(x_response.encode('utf-8'))
 
     def read_websocket(self) -> bytes:
         try:
@@ -275,7 +293,7 @@ class TWebSocketClient:
             self.m_socket.sendall(a_data)
 
 
-class TWebSocket(threading.Thread):
+class TWebSocket(Thread):
     """ Manage connections to the WEB socket interface """
     def __init__(self, a_web_address, a_agent_class: type[TWebSocketAgent]):
         self.m_web_socket: socket = None
@@ -283,7 +301,7 @@ class TWebSocket(threading.Thread):
         self.m_clients     = dict()
         self.m_agent_class = a_agent_class
         self.m_running     = True
-        super().__init__()
+        super().__init__(name='WebSocket')
     
     def shutdown(self):
         """ Shutdown closes all sockets """
@@ -304,7 +322,7 @@ class TWebSocket(threading.Thread):
         print(f'websocket {self.m_web_addr[0]} at {self.m_web_addr[1]}')
 
         while self.m_running:
-            x_rd, x_wr, x_err = select.select(x_read_list, [], x_read_list)
+            x_rd, x_wr, x_err = select.select(x_read_list, [], x_read_list, 1)
             if not x_rd and not x_wr and not x_err:
                 continue
                             
@@ -335,28 +353,21 @@ class TWebSocket(threading.Thread):
                         self.m_clients.pop(x_socket)
 
 
-class TAsyncManager(threading.Thread):
-    """ The TAsyncManger executes the given target, which is a list of
-    function calls and update requests """
-    def __init__(self, target: Callable, condition: threading.Condition):
-        self.m_target  = target
-        self.m_cv      = condition
-        self.m_running = True
-        super().__init__()
+@dataclass(kw_only=True)
+class TAsyncHandler(Thread):
+    """ Execute method in background task """
+    condition:      Condition = Condition()
+    method:         Callable
+    args:           dict
+    socket_server:  TWebSocketClient
+    request:        dict
+    description:    str
 
-    def shutdown(self):
-        """ shutdown request """
-        with self.m_cv:
-            self.m_running = False
-            self.m_cv.notify_all()
+    def __post_init__(self):
+        super().__init__(daemon=True, name=self.description)
 
     def run(self):
-        """ Run the target if notified """
-        while self.m_running:
-            self.m_target()
-            with self.m_cv:
-                self.m_cv.wait()
-
-
-
-
+        x_result = self.method(self.args)
+        self.socket_server.handle_aync_request(self.request, x_result)
+        with self.condition:
+            self.condition.notify_all()

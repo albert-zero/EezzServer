@@ -3,15 +3,14 @@ import os
 from   pathlib    import Path
 from   datetime   import datetime, timezone
 from   threading  import Condition
-from   webroot.applications.eezz.table import TTable
+from   table      import TTable
 
 
 class TDirView(TTable):
     """ Example class printing directory content """
-
-    def __init__(self, path: str, condition: Condition = None):
+    def __init__(self, path: str):
         # noinspection PyArgumentList
-        super().__init__(column_names=['File', 'Size', 'Access Time'], title='Directory', condition=condition)
+        super().__init__(column_names=['File', 'Size', 'Access Time'], title='Directory')
 
         a_path = Path(path)
         self.table_title = 'Directory'
@@ -24,7 +23,8 @@ class TDirView(TTable):
 
 
 class TDirPng(TTable):
-    def __init__(self, path: str, condition: Condition = None):
+    """ Example using row type """
+    def __init__(self, path: str):
         # noinspection PyArgumentList
         super().__init__(column_names=['File', 'Size', 'Access Time'], title='DirPng', condition=condition)
 

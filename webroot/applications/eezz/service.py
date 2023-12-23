@@ -21,18 +21,24 @@
 
  
 """
+import itertools
+import json
+import sys
+import logging
+import threading
+
 from   bs4         import Tag
 from   dataclasses import dataclass
 from   pathlib     import Path
 from   importlib   import import_module
-import sys
 from   lark        import Lark, Transformer, Tree
 from   table       import TTable
-from   threading   import Condition
-import logging
+from   typing      import Dict, Callable
+from   threading   import Thread
+
 
 def singleton(a_class):
-    """ Singleton decorator """
+    """ Singleton decorator for TService """
     instances = {}
 
     def get_instance(**kwargs):
@@ -45,6 +51,7 @@ def singleton(a_class):
 @singleton
 @dataclass(kw_only=True)
 class TService:
+    """ Container for environment """
     root_path:        Path = None
     document_path:    Path = None
     application_path: Path = None
@@ -54,8 +61,9 @@ class TService:
     host:             str  = 'localhost'
     websocket_addr:   int  = 8100
     global_objects:   dict = None
-    condition:        Condition = None
+    post_init_fkt:    list = None
     translate:        bool = False
+    async_methods:    Dict[Callable, Thread] = None
 
     def __post_init__(self):
         if not self.root_path:
@@ -63,36 +71,47 @@ class TService:
         if isinstance(self.root_path, str):
             self.root_path = Path(self.root_path)
 
-        self.condition        = Condition()
-        self.resource_path    = self.root_path / 'resources'
-        self.public_path      = self.root_path / 'public'
-        self.application_path = self.root_path / 'applications'
-        self.document_path    = self.root_path / 'database'
-        self.locales_path     = self.resource_path / 'locales'
-        self.global_objects   = {}
+        self.resource_path    = self.root_path      / 'resources'
+        self.public_path      = self.root_path      / 'public'
+        self.application_path = self.root_path      / 'applications'
+        self.document_path    = self.root_path      / 'database'
+        self.locales_path     = self.resource_path  / 'locales'
+        self.global_objects   = dict()
+        self.post_init_fkt    = list()
 
     def assign_object(self, obj_id: str, a_descr: str, attrs: dict, a_tag: Tag = None) -> None:
-        x, y, z = a_descr.split('.')
-        x_path = self.application_path / x
+        try:
+            x_list  = a_descr.split('.')
+            x, y, z = x_list[:-2], x_list[-2], x_list[-1]
+        except Exception as ex:
+            print(ex)
+            logging.error(f'{ex}: Description of an assignment is <Directory>.<Module>.<Class> ')
+            return
+
+        x_path = self.application_path / '/'.join(x)
 
         if not str(x_path) in sys.path:
             sys.path.append(str(x_path))
 
         try:
-            x_module = import_module(y)
-            x_class  = getattr(x_module, z)
-            x_object = x_class(condition=self.condition, **attrs)
-            self.global_objects.update({obj_id: (x_object, a_tag)})
+            x_module    = import_module(y)
+            x_class     = getattr(x_module, z)
+            x_object    = x_class(**attrs)
+            self.global_objects.update({obj_id: (x_object, a_tag, a_descr)})
         except Exception as ex:
             print(ex)
+            logging.error(ex)
+
+    def add_post_init_method(self, obj_id: str, a_method_name: str, args: dict) -> None:
+        self.post_init_fkt.append((obj_id, a_method_name, args))
 
     def get_method(self, obj_id: str, a_method_name: str) -> tuple:
-        x_object, x_tag = self.global_objects[obj_id]
+        x_object, x_tag, x_descr = self.global_objects[obj_id]
         x_method = getattr(x_object, a_method_name)
         return x_object, x_method, x_tag
 
     def get_object(self, obj_id: str) -> TTable:
-        x_object, x_tag = self.global_objects[obj_id]
+        x_object, x_tag, x_descr = self.global_objects[obj_id]
         return x_object
 
 
@@ -100,88 +119,59 @@ class TServiceCompiler(Transformer):
     """ Transforms the parser tree into a list of dictionaries """
     def __init__(self, a_tag: Tag, a_id: str = '', a_query: dict = None):
         super().__init__()
-        self.m_id    = a_id
-        self.m_tag   = a_tag
-        self.m_query = a_query
+        self.m_id       = a_id
+        self.m_tag      = a_tag
+        self.m_query    = a_query
+        self.m_service  = TService()
+
+        # Generator section
+        self.simple_str       = lambda item: ''.join([str(x) for x in item])
+        self.escaped_str      = lambda item: ''.join([x.strip('"') for x in item])
+        self.qualified_string = lambda item: '.'.join([str(x) for x in item])
+        self.list_updates     = lambda item: list(itertools.accumulate(item, lambda a, b: a | b))[-1]
+        self.list_arguments   = lambda item: list(itertools.accumulate(item, lambda a, b: a | b))[-1]
+        self.update_section   = lambda item: {'update': item[0]}
+        self.update_item      = lambda item: {item[0]: item[1]} if len(item) == 2 else {item[0]: item[0]}
+        self.assignment       = lambda item: {item[0]: item[1]}
+        self.format_string    = lambda item: f'{{{".".join(item)}}}'
+        self.format_value     = lambda item: f'{{{".".join([str(x[0]) for x in item[0].children])}}}'
 
     def template_section(self, item):
         if item[0] in ('name', 'match', 'template'):
             self.m_tag[f'data-eezz-{item[0]}'] = item[1]
         return {item[0]: item[1]}
 
-    def simple_str(self, item):
-        x_str = ''.join([str(x) for x in item])
-        return x_str
-
-    def escaped_str(self, item):
-        x_str = ''.join([x.strip('"') for x in item])
-        return x_str
-
-    def format_string(self, item):
-        x_str = '.'.join(item)
-        return f'{{{x_str}}}'
-
-    def update_item(self, item):
-        x_key, x_value = item
-        return {x_key: x_value}
-
-    def list_updates(self, item):
-        x_result = dict()
-        for x in item:
-            x_result.update(x)
-        return x_result
-
-    def update_section(self, item):
-        x_args         = item[0]
-        return {'update': x_args}
-
-    def assignment(self, item):
-        x_key, x_value = item
-        return {x_key: x_value}
-
-    def list_arguments(self, item):
-        """ Concatenate the argument list for function calls """
-        x_result = dict()
-        for x in item:
-            x_result.update(x)
-        return x_result
-
-    def qualified_string(self, item):
-        x_tree = item[0]
-        return '.'.join([x for x in item])
-
-    def format_value(self, item):
-        """ Concatenate a qualified string """
-        x_tree = item[0]
-        x_str = '.'.join([str(x[0]) for x in x_tree.children])
-        return f"{{{x_str}}}"
-
-    def async_section(self, item):
-        x_function, x_args = item[0].children
-        return {'call': {'function': x_function, 'args': x_args, 'id': self.m_id, 'type': 'async'}}
-
     def funct_assignment(self, item):
         x_function, x_args = item[0].children
-        self.m_tag['onclick'] = 'eezy_click(event, this)'
-        return {'call': {'function': x_function, 'args': x_args, 'id': self.m_id, 'type': 'update'}}
+        self.m_tag['onclick'] = 'eezzy_click(event, this)'
+        return {'call': {'function': x_function, 'args': x_args, 'id': self.m_id}}
+
+    def post_init(self, item):
+        x_function, x_args = item[0].children
+        x_json_obj = {'call': {'function': x_function, 'args': x_args, 'id': self.m_id}}
+        self.m_tag['data-eezz-init'] = json.dumps(x_json_obj)
+        print(self.m_tag)
+        return x_json_obj
 
     def table_assignment(self, item):
         """ The table assignment uses TQuery to format arguments
         In case the arguments are not all present, the format is broken and process continues with default """
         x_function, x_args = item[0].children
+
         try:
             x_query = TQuery(self.m_query)
             x_args  = {x_key: x_val.format(query=x_query) for x_key, x_val in x_args.items()}
         except AttributeError as ex:
             pass
-        TService().assign_object(self.m_id, x_function, x_args, self.m_tag)
-        return {'call': {'function': x_function, 'args': x_args, 'type': 'assign'}}
+        self.m_service.assign_object(self.m_id, x_function, x_args, self.m_tag)
+        return {'assign': {'function': x_function, 'args': x_args, 'id': self.m_id}}
 
 
 class TTranslate:
     def __init__(self):
         pass
 
+    @staticmethod
     def generate_pot(self, a_soup, a_title):
         try:
             x_pot_file = TService().locales_path / f'{a_title}.pot'
@@ -196,6 +186,7 @@ class TTranslate:
         except FileNotFoundError as ex:
             logging.error(f'Creation of POT file is not possible: {str(ex)}')
 
+
 @dataclass(kw_only=True)
 class TQuery:
     """ Data class to perform a format function. Attributes are provided dynamically """
@@ -207,16 +198,16 @@ class TQuery:
 
 if __name__ == '__main__':
     xx_sys = TService(root_path='/home/paul/Projects/github/EezzServer2/webroot')
-    xx_sys.assign_object('1', 'examples.directory.TDirView', {'path': '/home/paul/Projects/github/EezzServer2/webroot'}, None)
-    xx_object, xx_method, xx_tag = xx_sys.get_method("1", 'print')
-    # xx_method()
-    xx_object.print()
+    # #xx_sys.assign_object('1', 'examples.directory.TDirView', {'path': '/home/paul/Projects/github/EezzServer2/webroot'}, None)
+    # xx_object, xx_method, xx_tag = xx_sys.get_method("1", 'print')
+    #  xx_method()
+    # xx_object.print()
 
     g_parser = Lark.open(str(Path(TService().resource_path) / 'eezz.lark'))
-    dataeezz = 'assign: examples.directory.TDirView(path="."), name: Directory'
+    dataeezz = 'assign: examples.directory.TDirView(path="."),  post_init: find_devices(), update: this.tbody'
     g_syntax_tree = g_parser.parse(dataeezz)
     g_tag         = Tag(name='text')
-    g_transformer = TServiceCompiler(g_tag, '1000')
+    g_transformer = TServiceCompiler(g_tag, 'Directory')
     g_list_json = g_transformer.transform(g_syntax_tree)
     if isinstance(g_list_json, Tree):
         print(g_list_json.children)
